@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MatExpress Pro</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --blue:#0932b0;
+  --blue-lt:#1a4fd6;
+  --blue-dk:#071e6e;
+  --blue-faint:rgba(9,50,176,0.10);
+  --blue-bdr:rgba(9,50,176,0.30);
+  --bg:#eef1f9;
+  --surf:#ffffff;
+  --surf2:#e8ecf8;
+  --text:#0a0f2e;
+  --text2:#3a4270;
+  --muted:#7a82a8;
+  --bdr:#d0d6ee;
+  --red:#dc2626;
+  --red-lt:rgba(220,38,38,0.10);
+  --green:#16a34a;
+  --green-lt:rgba(22,163,74,0.10);
+  --shadow:0 2px 10px rgba(9,50,176,0.09);
+  --shadow-lg:0 8px 32px rgba(9,50,176,0.20);
+}
+body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;overflow-x:hidden}
+.D{font-family:'Barlow Condensed',sans-serif}
+input,select,textarea,button{font-family:'Barlow',sans-serif}
+input,select,textarea{
+  background:var(--surf);border:2px solid var(--bdr);color:var(--text);
+  border-radius:12px;padding:11px 14px;font-size:14px;width:100%;
+  transition:border-color .15s,box-shadow .15s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-faint);outline:none}
+select option{background:#fff;color:var(--text)}
+input::placeholder,textarea::placeholder{color:var(--muted)}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:99px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
+@keyframes pop{0%{transform:scale(.82);opacity:0}60%{transform:scale(1.05)}100%{transform:scale(1);opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.fu{animation:fadeUp .3s cubic-bezier(.22,1,.36,1) both}
+.su{animation:slideUp .28s cubic-bezier(.22,1,.36,1)}
+.pop{animation:pop .38s cubic-bezier(.34,1.56,.64,1) both}
+.spin{animation:spin .75s linear infinite}
+.card{background:var(--surf);border:1.5px solid var(--bdr);border-radius:18px;padding:18px;box-shadow:var(--shadow)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  border:none;border-radius:12px;font-family:'Barlow Condensed',sans-serif;
+  font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;
+  transition:transform .12s,filter .12s,opacity .12s}
+.btn:active{transform:scale(.96)}
+.btn-P{background:var(--blue);color:#fff;padding:13px 20px;font-size:15px;
+  width:100%;box-shadow:0 4px 16px rgba(9,50,176,.32)}
+.btn-P:active{filter:brightness(.88)}
+.btn-S{background:var(--surf2);color:var(--text);padding:12px 20px;font-size:14px;
+  width:100%;border:2px solid var(--bdr)}
+.btn-D{background:var(--red-lt);color:var(--red);padding:11px 18px;font-size:13px;
+  width:100%;border:1.5px solid rgba(220,38,38,.2)}
+.btn-off{opacity:.38;pointer-events:none}
+.ico{background:var(--surf2);border:1.5px solid var(--bdr);color:var(--text2);
+  border-radius:11px;padding:9px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .12s;flex-shrink:0}
+.ico:active{transform:scale(.91)}
+.ico.wh{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.3);color:#fff}
+.ico.rd{background:var(--red-lt);border-color:rgba(220,38,38,.2);color:var(--red)}
+.ico.bl{background:var(--blue-faint);border-color:var(--blue-bdr);color:var(--blue)}
+.tag{display:inline-flex;align-items:center;font-family:'Barlow Condensed',sans-serif;
+  font-weight:700;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  padding:3px 9px;border-radius:99px}
+.tb{background:var(--blue-faint);color:var(--blue)}
+.tm{background:var(--surf2);color:var(--muted)}
+.tg{background:var(--green-lt);color:var(--green)}
+.lbl{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;display:block}
+.nav-b{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:none;border:none;cursor:pointer;font-family:'Barlow Condensed',sans-serif;
+  font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  transition:color .15s;padding:8px 4px}
+.overlay{position:fixed;inset:0;z-index:100;background:rgba(10,15,46,.52);
+  backdrop-filter:blur(5px);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surf);border-radius:24px 24px 0 0;width:100%;max-width:480px;
+  padding:22px 20px 36px;max-height:90dvh;overflow-y:auto}
+.fs{position:fixed;inset:0;z-index:100;background:var(--bg);overflow-y:auto;animation:fadeUp .2s both}
+.irow{background:var(--surf);border:1.5px solid var(--bdr);border-left:4px solid var(--blue);
+  border-radius:14px;padding:12px 14px;display:flex;justify-content:space-between;
+  align-items:center;animation:fadeUp .22s both;box-shadow:var(--shadow)}
+.drop{background:var(--surf);border:2px solid var(--blue);border-top:none;
+  border-radius:0 0 14px 14px;overflow:hidden;box-shadow:0 8px 24px rgba(9,50,176,.14)}
+.drow{padding:11px 14px;cursor:pointer;display:flex;justify-content:space-between;
+  align-items:center;transition:background .1s;border-bottom:1px solid var(--bdr);font-size:13px}
+.drow:last-child{border-bottom:none}
+.drow:hover,.drow.act{background:var(--blue-faint)}
+.qb{background:var(--surf2);border:1.5px solid var(--bdr);border-radius:9px;
+  padding:6px 14px;font-family:'Barlow Condensed',sans-serif;font-weight:800;
+  font-size:15px;cursor:pointer;transition:all .12s;color:var(--text)}
+.qb:active,.qb.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.success-scr{position:fixed;inset:0;z-index:200;background:var(--blue);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  animation:fadeUp .2s both}
+@keyframes flash{0%,100%{opacity:1}50%{opacity:.3}}
+hr{border:none;border-top:1.5px solid var(--bdr)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef}=React;
+const GKEY_DEFAULT="";
+const VKEY_DEFAULT="";
+const AID="matexpress_v7_2";
+const fmt=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+/* ── ICONS ── */
+const I=({n,s=20})=>{
+  const p={
+    plus:<><path d="M5 12h14"/><path d="M12 5v14"/></>,
+    pkg:<><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></>,
+    hist:<><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></>,
+    gear:<><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></>,
+    trash:<><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></>,
+    dl:<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></>,
+    x:<><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>,
+    spark:<><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></>,
+    check:<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>,
+    edit:<><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></>,
+    load:<><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></>,
+    img:<><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></>,
+    phone:<><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.99 9.97a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.92 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></>,
+    user:<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>,
+    receipt:<><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8H8"/><path d="M16 12H8"/><path d="M12 16H8"/></>,
+  };
+  return(
+    <svg xmlns="http://www.w3.org/2000/svg" width={s} height={s} viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {p[n]}
+    </svg>
+  );
+};
+
+/* ── DEFAULTS ── */
+const DMATS=[
+  {id:'1',name:'Varilla 3/8" Corrugada',price:185.50,unit:'Pza',cat:'Acero'},
+  {id:'2',name:'Cemento Apasco 50kg',price:245.00,unit:'Saco',cat:'Cemento'},
+  {id:'3',name:'PTR 2x2 C-14',price:840.00,unit:'Tramo',cat:'Acero'},
+  {id:'4',name:'Arena de Mina',price:450.00,unit:'M3',cat:'Áridos'},
+  {id:'5',name:'Grava 3/4"',price:520.00,unit:'M3',cat:'Áridos'},
+  {id:'6',name:'Block 15x20x40',price:12.50,unit:'Pza',cat:'Mampostería'},
+  {id:'7',name:'Tabique Rojo Recocido',price:4.80,unit:'Pza',cat:'Mampostería'},
+  {id:'8',name:'Malla Electrosoldada 6x6',price:680.00,unit:'Rollo',cat:'Acero'},
+];
+const DCFG={
+  companyName:'MATERIALES EXPRESS',rfc:'MEX-990101-ABC',
+  address:'Av. Construcción 456, Col. Industrial',
+  phone:'686-123-4567',email:'ventas@matexpress.com',
+  logoUrl:'',pay:'Efectivo / Transferencia',
+  notes:'Precios sujetos a cambio sin previo aviso.',
+  terms:'Vigencia de cotización: 5 días hábiles.',
+  visionKey:'',
+  groqKey:'',
+};
+const QS=[1,2,5,10,20,50];
+
+/* ══ APP ══════════════════════════════════════════════ */
+const App=()=>{
+  const [tab,setTab]=useState('quote');
+  const [records,setRecords]=useState([]);
+  const [mats,setMats]=useState(DMATS);
+  const [cfg,setCfg]=useState(DCFG);
+  /* quote */
+  const [client,setClient]=useState('');
+  const [phone,setPhone]=useState('');
+  const [items,setItems]=useState([]);
+  /* add-item */
+  const [srch,setSrch]=useState('');
+  const [sel,setSel]=useState(null);
+  const [qty,setQty]=useState('');
+  const [povr,setPovr]=useState('');
+  const [drop,setDrop]=useState(false);
+  const sRef=useRef();
+  /* modals */
+  const [showIA,setShowIA]=useState(false);
+  const [showCfg,setShowCfg]=useState(false);
+  const [showEM,setShowEM]=useState(false);
+  const [emData,setEmData]=useState(null);
+  const [emNew,setEmNew]=useState(false);
+  const [showOK,setShowOK]=useState(false);
+  const [expRec,setExpRec]=useState(null);
+  /* ai */
+  const [aiTxt,setAiTxt]=useState('');
+  const [aiLoad,setAiLoad]=useState(false);
+  const [aiErr,setAiErr]=useState('');
+  const [isListening,setIsListening]=useState(false);
+  const [imgLoad,setImgLoad]=useState(false);
+  const recogRef=useRef(null);
+  /* mat filter */
+  const [mflt,setMflt]=useState('');
+
+  /* persist */
+  useEffect(()=>{
+    try{const s=localStorage.getItem(AID);
+      if(s){const p=JSON.parse(s);
+        if(p.mats)setMats(p.mats);
+        if(p.records)setRecords(p.records);
+        if(p.cfg)setCfg(p.cfg);}
+    }catch(e){}
+  },[]);
+  const save=(m,r,c)=>{
+    const nm=m!==undefined?m:mats,nr=r!==undefined?r:records,nc=c!==undefined?c:cfg;
+    try{localStorage.setItem(AID,JSON.stringify({mats:nm,records:nr,cfg:nc}));}catch(e){}
+    if(m!==undefined)setMats(m);if(r!==undefined)setRecords(r);if(c!==undefined)setCfg(c);
+  };
+
+  /* search filter */
+  const filt=srch.trim()
+    ?mats.filter(m=>m.name.toLowerCase().includes(srch.toLowerCase())||(m.cat||'').toLowerCase().includes(srch.toLowerCase()))
+    :mats.slice(0,6);
+
+  const pickMat=m=>{
+    setSel(m);setSrch(m.name);setPovr(m.price.toString());setDrop(false);
+    setTimeout(()=>document.getElementById('qi')?.focus(),60);
+  };
+  const clearSel=()=>{setSel(null);setSrch('');setPovr('');setQty('');setDrop(false);};
+
+  /* add */
+  const addItem=()=>{
+    if(!sel||!qty||parseFloat(qty)<=0)return;
+    const p=povr?parseFloat(povr):sel.price,q=parseFloat(qty);
+    setItems(prev=>[...prev,{...sel,rowId:uid(),price:p,qty:q,total:p*q}]);
+    clearSel();sRef.current?.focus();
+  };
+  const onQK=e=>{if(e.key==='Enter')addItem();};
+
+  /* finalize */
+  const finalize=()=>{
+    if(!items.length)return;
+    const total=items.reduce((a,b)=>a+b.total,0);
+    const rec={id:uid(),client:client.trim()||'CLIENTE MOSTRADOR',phone:phone.trim()||'—',
+      items:[...items],total,date:new Date().toLocaleString('es-MX'),snap:{...cfg}};
+    const nr=[rec,...records];
+    save(undefined,nr,undefined);
+    setItems([]);setClient('');setPhone('');
+    setTab('history');setShowOK(true);setTimeout(()=>setShowOK(false),2100);
+  };
+
+  /* AI ─ Groq llama-3.3-70b, strip markdown, flexible matching */
+  const processAI=async()=>{
+    if(!aiTxt.trim())return;
+    const gkey=cfg.groqKey?.trim();
+    if(!gkey){
+      setAiErr('Falta la API Key de Groq. Agrégala en ⚙️ Configuración.');
+      return;
+    }
+    setAiLoad(true);setAiErr('');
+    const catalog=mats.map(m=>({id:m.id,name:m.name,unit:m.unit,cat:m.cat||''}));
+    const prompt=`Eres un asistente de ferretería. Analiza el pedido y encuentra productos del catálogo.
+
+CATÁLOGO DISPONIBLE:
+${JSON.stringify(catalog,null,2)}
+
+PEDIDO: "${aiTxt}"
+
+REGLAS:
+- Busca coincidencias por nombre parcial o sinónimos (cemento=Cemento Apasco, varilla=Varilla, arena=Arena de Mina, etc.)
+- Extrae la cantidad numérica mencionada; si no hay cantidad usa 1
+- Solo incluye productos que encuentres en el catálogo
+
+RESPONDE ÚNICAMENTE con JSON válido, sin texto extra, sin markdown, sin explicaciones:
+{"items":[{"id":"ID_DEL_PRODUCTO","qty":NUMERO}]}`;
+
+    try{
+      const res=await fetch(
+        `https://api.groq.com/openai/v1/chat/completions`,
+        {method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${gkey}`},
+         body:JSON.stringify({
+           model:'llama-3.3-70b-versatile',
+           messages:[{role:'user',content:prompt}],
+           temperature:0.1,max_tokens:256,
+         })}
+      );
+      if(!res.ok){const e=await res.text();throw new Error(`API ${res.status}: ${e.slice(0,120)}`);}
+      const data=await res.json();
+      const raw=data?.choices?.[0]?.message?.content||'';
+      /* strip markdown fences */
+      const clean=raw.replace(/```(?:json)?/gi,'').replace(/```/g,'').trim();
+      /* extract JSON object */
+      const match=clean.match(/\{[\s\S]*\}/);
+      if(!match)throw new Error('Respuesta inesperada de IA: '+clean.slice(0,80));
+      const result=JSON.parse(match[0]);
+      if(!result.items||result.items.length===0){
+        setAiErr('No reconocí materiales del catálogo. Intenta: "5 sacos cemento, 10 varillas"');
+        setAiLoad(false);return;
+      }
+      const batch=result.items.map(x=>{
+        const orig=mats.find(m=>m.id===String(x.id));
+        if(!orig)return null;
+        const q=Math.max(1,parseFloat(x.qty)||1);
+        return{...orig,rowId:uid(),qty:q,total:orig.price*q};
+      }).filter(Boolean);
+      if(batch.length===0){
+        setAiErr('IDs no coinciden con el catálogo. Prueba con nombres más claros.');
+        setAiLoad(false);return;
+      }
+      setItems(prev=>[...prev,...batch]);
+      setAiTxt('');setShowIA(false);
+    }catch(e){
+      console.error('AI error:',e);
+      setAiErr('Error: '+e.message);
+    }
+    setAiLoad(false);
+  };
+
+  /* VOICE ── Web Speech API nativa Safari iOS */
+  const toggleVoice=()=>{
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){setAiErr('Tu navegador no soporta voz. Usa Safari en iOS 17+.');return;}
+    if(isListening){
+      recogRef.current?.stop();setIsListening(false);return;
+    }
+    const r=new SR();
+    recogRef.current=r;
+    r.lang='es-MX';r.continuous=false;r.interimResults=false;
+    r.onstart=()=>setIsListening(true);
+    r.onresult=e=>{
+      const txt=e.results[0][0].transcript;
+      setAiTxt(prev=>(prev?prev+' ':'')+txt);
+      setIsListening(false);
+    };
+    r.onerror=e=>{
+      setAiErr('Error de micrófono: '+e.error);setIsListening(false);
+    };
+    r.onend=()=>setIsListening(false);
+    r.start();
+  };
+
+  /* IMAGE ── Gemini Vision */
+  const processImage=async(file)=>{
+    if(!file)return;
+    const vkey=cfg.visionKey?.trim();
+    if(!vkey){
+      setAiErr('Falta la API Key de Gemini Vision. Agrégala en ⚙️ Configuración.');
+      return;
+    }
+    setImgLoad(true);setAiErr('');
+    try{
+      const b64=await new Promise((res,rej)=>{
+        const rd=new FileReader();
+        rd.onloadend=()=>res(rd.result.split(',')[1]);
+        rd.onerror=rej;rd.readAsDataURL(file);
+      });
+      const mime=file.type||'image/jpeg';
+      const catalog=mats.map(m=>({id:m.id,name:m.name,unit:m.unit}));
+      const prompt=`Analiza esta imagen (puede ser una lista escrita a mano, una nota, o una foto de pedido de materiales de construcción).
+Extrae los productos y cantidades mencionados.
+Luego busca coincidencias en este catálogo: ${JSON.stringify(catalog)}
+Reglas: coincidencias flexibles por nombre parcial o sinónimos. Si no hay cantidad usa 1.
+Responde SOLO con JSON válido sin texto extra: {"items":[{"id":"ID","qty":NUMERO}]}`;
+
+      const res=await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${vkey}`,
+        {method:'POST',headers:{'Content-Type':'application/json'},
+         body:JSON.stringify({
+           contents:[{parts:[
+             {inline_data:{mime_type:mime,data:b64}},
+             {text:prompt}
+           ]}],
+           generationConfig:{temperature:0.1,maxOutputTokens:512}
+         })}
+      );
+      if(!res.ok){const e=await res.text();throw new Error(`Vision API ${res.status}: ${e.slice(0,100)}`);}
+      const data=await res.json();
+      const raw=data?.candidates?.[0]?.content?.parts?.[0]?.text||'';
+      const clean=raw.replace(/```(?:json)?/gi,'').replace(/```/g,'').trim();
+      const match=clean.match(/\{[\s\S]*\}/);
+      if(!match)throw new Error('No se pudo leer la imagen. Intenta con mejor iluminación.');
+      const result=JSON.parse(match[0]);
+      if(!result.items||result.items.length===0){
+        setAiErr('No encontré materiales del catálogo en la imagen.');
+        setImgLoad(false);return;
+      }
+      const batch=result.items.map(x=>{
+        const orig=mats.find(m=>m.id===String(x.id));
+        if(!orig)return null;
+        const q=Math.max(1,parseFloat(x.qty)||1);
+        return{...orig,rowId:uid(),qty:q,total:orig.price*q};
+      }).filter(Boolean);
+      if(batch.length===0){setAiErr('No coincidieron productos del catálogo.');setImgLoad(false);return;}
+      setItems(prev=>[...prev,...batch]);
+      setShowIA(false);
+    }catch(e){
+      console.error('Vision error:',e);setAiErr('Error: '+e.message);
+    }
+    setImgLoad(false);
+  };
+
+  /* PDF */
+  const genPDF=rec=>{
+    const {jsPDF}=window.jspdf;const doc=new jsPDF();const s=rec.snap||cfg;
+    doc.setFillColor(9,50,176);doc.rect(0,0,210,48,'F');
+    if(s.logoUrl){try{doc.addImage(s.logoUrl,'PNG',12,5,36,36);}catch(e){}}
+    doc.setTextColor(255,255,255);doc.setFontSize(19);doc.setFont('helvetica','bold');
+    doc.text(s.companyName.toUpperCase(),56,20);
+    doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(180,200,255);
+    doc.text(`RFC: ${s.rfc}  ·  Tel: ${s.phone}`,56,28);
+    doc.text(s.address,56,34);doc.text(s.email,56,40);
+    doc.setTextColor(255,230,80);doc.setFontSize(10);doc.setFont('helvetica','bold');
+    doc.text(`FOLIO #${rec.id.slice(-6).toUpperCase()}`,195,16,{align:'right'});
+    doc.setTextColor(200,215,255);doc.setFontSize(8);doc.setFont('helvetica','normal');
+    doc.text(rec.date,195,24,{align:'right'});
+    doc.setFillColor(240,242,248);doc.rect(15,54,180,18,'F');
+    doc.setFontSize(7);doc.setTextColor(100,110,150);
+    doc.text('CLIENTE',20,61);doc.text('TELÉFONO',130,61);
+    doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(10,15,46);
+    doc.text(rec.client.toUpperCase(),20,69);doc.text(rec.phone,130,69);
+    doc.autoTable({startY:80,
+      head:[['PRODUCTO','CANT','UNIDAD','PRECIO UNIT.','SUBTOTAL']],
+      body:rec.items.map(i=>[i.name,i.qty,i.unit,fmt(i.price),fmt(i.total)]),
+      headStyles:{fillColor:[9,50,176],textColor:[255,255,255],fontSize:8,fontStyle:'bold'},
+      bodyStyles:{textColor:[10,15,46],fontSize:9},
+      alternateRowStyles:{fillColor:[240,242,248]},
+      columnStyles:{0:{cellWidth:72},4:{halign:'right'}},
+    });
+    let fY=doc.lastAutoTable.finalY+10;
+    doc.setFillColor(9,50,176);doc.roundedRect(132,fY,62,16,3,3,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(11);doc.setFont('helvetica','bold');
+    doc.text(`TOTAL: ${fmt(rec.total)}`,163,fY+11,{align:'center'});
+    fY+=28;doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(120,130,168);
+    doc.text(`Notas: ${s.notes}`,15,fY);doc.text(s.terms,15,fY+6);
+    doc.text(`Forma de pago: ${s.pay}`,15,fY+12);
+    doc.save(`Cot_${rec.id.slice(-6).toUpperCase()}.pdf`);
+  };
+
+  const expCSV=type=>{
+    let csv='data:text/csv;charset=utf-8,';
+    if(type==='m'){csv+='Nombre,Precio,Unidad,Categoría\n';mats.forEach(m=>{csv+=`"${m.name}",${m.price},"${m.unit}","${m.cat||''}"\n`;});}
+    else{csv+='Fecha,Cliente,Teléfono,Total\n';records.forEach(r=>{csv+=`"${r.date}","${r.client}","${r.phone}",${r.total}\n`;});}
+    const a=document.createElement('a');a.href=encodeURI(csv);a.download=`${type}.csv`;a.click();
+  };
+  const onLogo=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const rd=new FileReader();rd.onloadend=()=>{const nc={...cfg,logoUrl:rd.result};setCfg(nc);save(undefined,undefined,nc);};rd.readAsDataURL(f);
+  };
+
+  const total=items.reduce((a,b)=>a+b.total,0);
+
+  /* ═══ RENDER ═══════════════════════════════════════ */
+  return(
+    <div style={{maxWidth:480,margin:'0 auto',minHeight:'100dvh',display:'flex',flexDirection:'column',paddingBottom:84}}>
+
+      {/* HEADER */}
+      <header style={{
+        background:cfg.logoUrl?'var(--surf)':'var(--blue)',
+        borderBottom:`2px solid ${cfg.logoUrl?'var(--bdr)':'rgba(255,255,255,.15)'}`,
+        padding:'12px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',
+        position:'sticky',top:0,zIndex:50,boxShadow:'0 2px 16px rgba(9,50,176,.18)',
+      }}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          {cfg.logoUrl
+            ?<img src={cfg.logoUrl} style={{width:42,height:42,borderRadius:10,objectFit:'contain',background:'var(--surf2)'}}/>
+            :<div style={{width:42,height:42,background:'rgba(255,255,255,.18)',borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff'}}>
+              <I n="pkg" s={22}/>
+            </div>
+          }
+          <div>
+            <div className="D" style={{fontSize:16,fontWeight:900,letterSpacing:'.04em',color:cfg.logoUrl?'var(--text)':'#fff',lineHeight:1.1}}>
+              {cfg.companyName}
+            </div>
+            <div style={{fontSize:10,fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',
+              color:cfg.logoUrl?'var(--blue)':'rgba(255,255,255,.65)'}}>
+              Cotizador Pro
+            </div>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:8}}>
+          <button className={`ico ${cfg.logoUrl?'bl':'wh'}`}
+            onClick={()=>{setAiTxt('');setAiErr('');setShowIA(true);}}>
+            <I n="spark" s={18}/>
+          </button>
+          <button className={`ico ${cfg.logoUrl?'':'wh'}`}
+            style={cfg.logoUrl?{}:{background:'rgba(255,255,255,.18)',border:'1.5px solid rgba(255,255,255,.3)',color:'#fff'}}
+            onClick={()=>setShowCfg(true)}>
+            <I n="gear" s={18}/>
+          </button>
+        </div>
+      </header>
+
+      {/* MAIN */}
+      <main style={{flex:1,padding:'14px 14px 0'}}>
+
+        {/* ─ QUOTE ─ */}
+        {tab==='quote'&&(
+          <div className="fu" style={{display:'flex',flexDirection:'column',gap:14}}>
+
+            {/* Client */}
+            <div className="card">
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+                <div style={{width:30,height:30,background:'var(--blue-faint)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--blue)'}}>
+                  <I n="user" s={16}/>
+                </div>
+                <span className="D" style={{fontSize:15,fontWeight:800,color:'var(--text)'}}>Datos del Cliente</span>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                <div style={{gridColumn:'1/-1'}}>
+                  <label className="lbl">Nombre</label>
+                  <input value={client} onChange={e=>setClient(e.target.value)}
+                    placeholder="Ej. Juan Pérez" style={{fontSize:15,fontWeight:600}}/>
+                </div>
+                <div>
+                  <label className="lbl">Teléfono</label>
+                  <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="686-123-4567" type="tel"/>
+                </div>
+                <div style={{display:'flex',alignItems:'flex-end'}}>
+                  <div style={{padding:'8px 12px',borderRadius:10,fontSize:11,fontWeight:700,
+                    background:client.trim()?'var(--green-lt)':'var(--surf2)',
+                    color:client.trim()?'var(--green)':'var(--muted)'}}>
+                    {client.trim()?'✓ Listo':'Mostrador'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Add product */}
+            <div className="card" style={{overflow:'visible',position:'relative'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+                <div style={{width:30,height:30,background:'var(--blue-faint)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--blue)'}}>
+                  <I n="pkg" s={16}/>
+                </div>
+                <span className="D" style={{fontSize:15,fontWeight:800,color:'var(--text)'}}>Agregar Producto</span>
+                {sel&&<span className="tag tm" style={{marginLeft:'auto'}}>{sel.unit}</span>}
+              </div>
+
+              {/* Search */}
+              <div style={{position:'relative'}}>
+                <label className="lbl">Buscar material</label>
+                <div style={{display:'flex',gap:8}}>
+                  <div style={{flex:1,position:'relative'}}>
+                    <input ref={sRef} value={srch}
+                      onChange={e=>{setSrch(e.target.value);setDrop(true);if(!e.target.value)setSel(null);}}
+                      onFocus={()=>setDrop(true)}
+                      placeholder="Cemento, varilla, arena..."
+                      style={{
+                        borderRadius:drop&&filt.length?'12px 12px 0 0':'12px',
+                        borderBottomColor:drop&&filt.length?'var(--blue)':'var(--bdr)',
+                        fontWeight:sel?600:400,fontSize:14,
+                      }}
+                    />
+                  </div>
+                  {sel&&<button className="ico" onClick={clearSel}><I n="x" s={16}/></button>}
+                </div>
+                {drop&&srch&&filt.length>0&&(
+                  <div className="drop" style={{position:'absolute',left:0,right:sel?50:0,zIndex:30,borderTop:'1px solid var(--bdr)'}}>
+                    {filt.map(m=>(
+                      <div key={m.id} className={`drow${sel?.id===m.id?' act':''}`} onMouseDown={()=>pickMat(m)}>
+                        <div>
+                          <div style={{fontWeight:600,color:'var(--text)'}}>{m.name}</div>
+                          <div style={{fontSize:11,color:'var(--muted)'}}>{m.cat||''} · {m.unit}</div>
+                        </div>
+                        <div className="D" style={{fontWeight:900,fontSize:16,color:'var(--blue)',flexShrink:0}}>
+                          {fmt(m.price)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* After pick */}
+              {sel&&(
+                <div className="fu" style={{marginTop:14}}>
+                  {/* Quick qty */}
+                  <label className="lbl">Cantidad rápida</label>
+                  <div style={{display:'flex',gap:7,flexWrap:'wrap',marginBottom:12}}>
+                    {QS.map(q=>(
+                      <button key={q} className={`qb${qty==q?' on':''}`}
+                        onClick={()=>setQty(q.toString())}>{q}</button>
+                    ))}
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+                    <div>
+                      <label className="lbl">Cantidad ({sel.unit})</label>
+                      <input id="qi" type="number" value={qty}
+                        onChange={e=>setQty(e.target.value)} onKeyDown={onQK}
+                        placeholder="0" min="0"
+                        style={{fontSize:20,fontWeight:800,textAlign:'center'}}/>
+                    </div>
+                    <div>
+                      <label className="lbl">Precio unit. ($)</label>
+                      <input type="number" value={povr}
+                        onChange={e=>setPovr(e.target.value)} onKeyDown={onQK}
+                        style={{fontSize:16,fontWeight:700,color:'var(--blue)',
+                          background:'var(--blue-faint)',borderColor:'var(--blue-bdr)'}}/>
+                    </div>
+                  </div>
+                  {qty&&parseFloat(qty)>0&&(
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+                      padding:'10px 14px',background:'var(--blue-faint)',borderRadius:12,
+                      border:'1.5px solid var(--blue-bdr)',marginBottom:12}}>
+                      <span style={{fontSize:12,color:'var(--text2)',fontWeight:500}}>
+                        {qty} {sel.unit} × {fmt(povr||sel.price)}
+                      </span>
+                      <span className="D" style={{fontSize:20,fontWeight:900,color:'var(--blue)'}}>
+                        {fmt((povr?parseFloat(povr):sel.price)*parseFloat(qty))}
+                      </span>
+                    </div>
+                  )}
+                  <button className={`btn btn-P${(!qty||parseFloat(qty)<=0)?' btn-off':''}`} onClick={addItem}>
+                    <I n="plus" s={18}/> Agregar al pedido
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Items list */}
+            {items.length>0&&(
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'2px 4px'}}>
+                  <span className="lbl" style={{margin:0}}>
+                    {items.length} {items.length===1?'producto':'productos'}
+                  </span>
+                  <span className="tag tb" style={{fontSize:14,padding:'4px 14px'}}>
+                    <span className="D" style={{fontWeight:900}}>{fmt(total)}</span>
+                  </span>
+                </div>
+                {items.map((it,i)=>(
+                  <div key={it.rowId} className="irow" style={{animationDelay:`${i*.04}s`}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div className="D" style={{fontSize:13,fontWeight:800,color:'var(--text)',
+                        textTransform:'uppercase',overflow:'hidden',textOverflow:'ellipsis',
+                        whiteSpace:'nowrap',paddingRight:8}}>
+                        {it.name}
+                      </div>
+                      <div style={{fontSize:11,color:'var(--muted)',marginTop:3}}>
+                        {it.qty} {it.unit} × {fmt(it.price)}
+                      </div>
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+                      <span className="D" style={{fontSize:16,fontWeight:900,color:'var(--blue)'}}>{fmt(it.total)}</span>
+                      <button className="ico rd" style={{padding:8}}
+                        onClick={()=>setItems(p=>p.filter(x=>x.rowId!==it.rowId))}>
+                        <I n="x" s={14}/>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Total bar */}
+            {items.length>0&&(
+              <div style={{
+                background:`linear-gradient(135deg,var(--blue-dk) 0%,var(--blue) 100%)`,
+                borderRadius:20,padding:'18px 20px',display:'flex',justifyContent:'space-between',
+                alignItems:'center',boxShadow:'0 8px 28px rgba(9,50,176,.35)',marginTop:4,marginBottom:8,
+              }}>
+                <div>
+                  <div style={{fontSize:10,color:'rgba(255,255,255,.55)',fontWeight:700,
+                    letterSpacing:'.1em',textTransform:'uppercase',fontFamily:'Barlow Condensed'}}>
+                    Total del pedido
+                  </div>
+                  <div className="D" style={{fontSize:30,fontWeight:900,color:'#fff',lineHeight:1.1}}>
+                    {fmt(total)}
+                  </div>
+                  {client.trim()&&<div style={{fontSize:11,color:'rgba(255,255,255,.65)',marginTop:4}}>{client}</div>}
+                </div>
+                <button onClick={finalize} style={{
+                  background:'#fff',color:'var(--blue)',border:'none',borderRadius:14,
+                  padding:'13px 22px',fontFamily:'Barlow Condensed',fontWeight:900,
+                  fontSize:16,letterSpacing:'.05em',textTransform:'uppercase',cursor:'pointer',
+                  boxShadow:'0 4px 14px rgba(0,0,0,.18)',transition:'transform .12s',
+                }}
+                  onMouseDown={e=>e.currentTarget.style.transform='scale(.96)'}
+                  onMouseUp={e=>e.currentTarget.style.transform='scale(1)'}>
+                  ✓ Finalizar
+                </button>
+              </div>
+            )}
+
+            {items.length===0&&!sel&&(
+              <div style={{textAlign:'center',padding:'36px 20px',color:'var(--muted)'}}>
+                <div style={{fontSize:48,marginBottom:10,opacity:.22}}>🧱</div>
+                <div className="D" style={{fontSize:18,fontWeight:900,color:'var(--text2)'}}>Sin productos aún</div>
+                <div style={{fontSize:12,marginTop:4,opacity:.7}}>Busca un material o usa el asistente IA</div>
+                <button className="btn btn-P" style={{width:'auto',marginTop:18,padding:'12px 24px'}}
+                  onClick={()=>{setAiTxt('');setAiErr('');setShowIA(true);}}>
+                  <I n="spark" s={16}/> Usar Asistente IA
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─ MATERIALS ─ */}
+        {tab==='materials'&&(
+          <div className="fu" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:20}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 2px 0'}}>
+              <div>
+                <div className="D" style={{fontSize:24,fontWeight:900,color:'var(--text)'}}>Catálogo</div>
+                <div style={{fontSize:11,color:'var(--muted)',marginTop:1}}>{mats.length} productos</div>
+              </div>
+              <button className="btn btn-P" style={{width:'auto',padding:'10px 18px'}}
+                onClick={()=>{setEmNew(true);setEmData({name:'',price:'',unit:'Pza',cat:''});setShowEM(true);}}>
+                <I n="plus" s={16}/> Nuevo
+              </button>
+            </div>
+            <input placeholder="Filtrar productos..." value={mflt} onChange={e=>setMflt(e.target.value)}/>
+            {mats.filter(m=>!mflt||m.name.toLowerCase().includes(mflt.toLowerCase())||(m.cat||'').toLowerCase().includes(mflt.toLowerCase()))
+              .map((m,i)=>(
+              <div key={m.id} className="card" style={{cursor:'pointer',padding:'14px 16px',
+                display:'flex',justifyContent:'space-between',alignItems:'center'}}
+                onClick={()=>{setEmNew(false);setEmData({...m});setShowEM(true);}}>
+                <div>
+                  <div className="D" style={{fontSize:14,fontWeight:800,color:'var(--text)',
+                    textTransform:'uppercase',letterSpacing:'.03em'}}>{m.name}</div>
+                  <div style={{display:'flex',gap:6,marginTop:5,flexWrap:'wrap'}}>
+                    <span className="tag tb">{fmt(m.price)}</span>
+                    <span className="tag tm">{m.unit}</span>
+                    {m.cat&&<span className="tag tm">{m.cat}</span>}
+                  </div>
+                </div>
+                <div style={{color:'var(--muted)'}}><I n="edit" s={16}/></div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ─ HISTORY ─ */}
+        {tab==='history'&&(
+          <div className="fu" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:20}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 2px 0'}}>
+              <div>
+                <div className="D" style={{fontSize:24,fontWeight:900,color:'var(--text)'}}>Historial</div>
+                <div style={{fontSize:11,color:'var(--muted)',marginTop:1}}>{records.length} cotizaciones</div>
+              </div>
+              {records.length>0&&(
+                <button className="ico bl" onClick={()=>expCSV('h')} style={{padding:10}}>
+                  <I n="dl" s={18}/>
+                </button>
+              )}
+            </div>
+            {records.length===0&&(
+              <div style={{textAlign:'center',padding:'60px 20px',color:'var(--muted)'}}>
+                <div style={{fontSize:44,marginBottom:8,opacity:.22}}>📋</div>
+                <div className="D" style={{fontSize:18,fontWeight:900,color:'var(--text2)'}}>Sin cotizaciones</div>
+                <div style={{fontSize:12,marginTop:4}}>Las ventas finalizadas aparecerán aquí</div>
+              </div>
+            )}
+            {records.map((r,i)=>(
+              <div key={r.id} className="card" style={{padding:0,overflow:'hidden'}}>
+                <div style={{padding:'14px 16px',cursor:'pointer',display:'flex',
+                  justifyContent:'space-between',alignItems:'flex-start'}}
+                  onClick={()=>setExpRec(expRec===r.id?null:r.id)}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:'flex',gap:6,marginBottom:6,flexWrap:'wrap'}}>
+                      <span className="tag tb">#{r.id.slice(-6).toUpperCase()}</span>
+                      <span className="tag tm">{r.date.split(',')[0]}</span>
+                      <span className="tag tm">{r.items.length} prod.</span>
+                    </div>
+                    <div className="D" style={{fontSize:15,fontWeight:900,color:'var(--text)',
+                      textTransform:'uppercase',overflow:'hidden',textOverflow:'ellipsis',
+                      whiteSpace:'nowrap',paddingRight:8}}>
+                      {r.client}
+                    </div>
+                    {r.phone!=='—'&&(
+                      <div style={{fontSize:11,color:'var(--muted)',marginTop:3,display:'flex',alignItems:'center',gap:4}}>
+                        <I n="phone" s={11}/> {r.phone}
+                      </div>
+                    )}
+                    <div className="D" style={{fontSize:24,fontWeight:900,color:'var(--blue)',marginTop:4}}>
+                      {fmt(r.total)}
+                    </div>
+                  </div>
+                  <div style={{display:'flex',gap:8,flexShrink:0}}>
+                    <button className="ico" onClick={e=>{e.stopPropagation();genPDF(r);}}>
+                      <I n="dl" s={18}/>
+                    </button>
+                    <button className="ico rd" onClick={e=>{
+                      e.stopPropagation();
+                      if(confirm('¿Eliminar cotización?')){
+                        const nr=records.filter(x=>x.id!==r.id);save(undefined,nr,undefined);
+                      }
+                    }}>
+                      <I n="trash" s={18}/>
+                    </button>
+                  </div>
+                </div>
+                {expRec===r.id&&(
+                  <div style={{borderTop:'1.5px solid var(--bdr)',padding:'12px 16px 14px',
+                    background:'var(--surf2)',display:'flex',flexDirection:'column',gap:8}}>
+                    {r.items.map((it,j)=>(
+                      <div key={j} style={{display:'flex',justifyContent:'space-between',
+                        alignItems:'center',fontSize:12}}>
+                        <span style={{color:'var(--text)',fontWeight:600,flex:1,minWidth:0,
+                          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',paddingRight:8}}>
+                          {it.name}
+                        </span>
+                        <span style={{color:'var(--muted)',flexShrink:0,fontSize:11}}>
+                          {it.qty}×{fmt(it.price)}=&nbsp;
+                          <strong style={{color:'var(--blue)'}}>{fmt(it.total)}</strong>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* BOTTOM NAV */}
+      <nav style={{
+        position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',
+        width:'100%',maxWidth:480,background:'var(--surf)',
+        borderTop:'2px solid var(--bdr)',display:'flex',
+        padding:'8px 16px 22px',zIndex:50,
+        boxShadow:'0 -4px 24px rgba(9,50,176,.08)',
+      }}>
+        {[
+          {id:'quote',icon:'receipt',label:'Venta'},
+          {id:'materials',icon:'pkg',label:'Catálogo'},
+          {id:'history',icon:'hist',label:'Historial'},
+        ].map(t=>(
+          <button key={t.id} className="nav-b"
+            onClick={()=>{setTab(t.id);setMflt('');}}
+            style={{color:tab===t.id?'var(--blue)':'var(--muted)'}}>
+            <div style={{width:44,height:32,borderRadius:10,display:'flex',alignItems:'center',
+              justifyContent:'center',background:tab===t.id?'var(--blue-faint)':'transparent',
+              transition:'background .15s'}}>
+              <I n={t.icon} s={21}/>
+            </div>
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
+      {/* ─ IA MODAL ─ */}
+      {showIA&&(
+        <div className="overlay" onClick={()=>{setShowIA(false);recogRef.current?.stop();setIsListening(false);}}>
+          <div className="sheet su" onClick={e=>e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <div style={{width:40,height:40,background:'var(--blue)',borderRadius:11,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff'}}>
+                  <I n="spark" s={20}/>
+                </div>
+                <div>
+                  <div className="D" style={{fontSize:18,fontWeight:900,color:'var(--text)'}}>Asistente IA</div>
+                  <div style={{fontSize:10,color:'var(--muted)',fontWeight:600}}>Pedido en lenguaje natural</div>
+                </div>
+              </div>
+              <button className="ico" onClick={()=>{setShowIA(false);recogRef.current?.stop();setIsListening(false);}}><I n="x" s={16}/></button>
+            </div>
+
+            <div style={{background:'var(--surf2)',borderRadius:13,padding:'11px 14px',marginBottom:14,
+              border:'1.5px solid var(--bdr)'}}>
+              <div style={{fontSize:11,color:'var(--muted)',fontWeight:700,marginBottom:5,fontFamily:'Barlow Condensed',textTransform:'uppercase',letterSpacing:'.08em'}}>
+                💡 Ejemplos
+              </div>
+              <div style={{fontSize:12,color:'var(--text2)',lineHeight:1.8}}>
+                • "Dame 10 varillas y 5 sacos de cemento"<br/>
+                • "Necesito 2 metros cúbicos de arena y 100 blocks"<br/>
+                • "3 tramos de PTR y 1 rollo de malla"
+              </div>
+            </div>
+
+            <label className="lbl">Describe el pedido</label>
+            <div style={{position:'relative',marginBottom:12}}>
+              <textarea value={aiTxt} onChange={e=>setAiTxt(e.target.value)}
+                placeholder="Escribe, dicta o sube una foto del pedido..."
+                style={{height:100,resize:'none',fontSize:14,lineHeight:1.6,paddingRight:48}}/>
+              {/* Mic button inside textarea */}
+              <button onClick={toggleVoice} style={{
+                position:'absolute',right:10,top:10,width:34,height:34,
+                background:isListening?'var(--red)':'var(--blue)',
+                border:'none',borderRadius:10,color:'#fff',cursor:'pointer',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                boxShadow:'0 2px 8px rgba(0,0,0,.15)',transition:'background .2s',
+              }} title="Dictar por voz">
+                {isListening
+                  ?<span style={{fontSize:16,animation:'flash 1s infinite'}}>⏹</span>
+                  :<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                }
+              </button>
+            </div>
+
+            {isListening&&(
+              <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',
+                background:'rgba(220,38,38,.08)',borderRadius:10,border:'1px solid rgba(220,38,38,.2)',
+                marginBottom:12,fontSize:12,color:'var(--red)',fontWeight:700}}>
+                <span style={{animation:'flash 1s infinite',fontSize:16}}>🔴</span> Escuchando... habla ahora
+              </div>
+            )}
+
+            {/* Image upload */}
+            <div style={{marginBottom:12}}>
+              <label className="lbl">O sube una foto / lista escrita</label>
+              <label style={{
+                display:'flex',alignItems:'center',justifyContent:'center',gap:10,
+                padding:'13px',background:imgLoad?'var(--blue-faint)':'var(--surf2)',
+                border:`2px dashed ${imgLoad?'var(--blue)':'var(--bdr)'}`,
+                borderRadius:12,cursor:'pointer',transition:'all .15s',
+              }}>
+                {imgLoad
+                  ?<><span className="spin" style={{display:'inline-block',fontSize:18}}>⟳</span>
+                    <span style={{fontSize:13,fontWeight:600,color:'var(--blue)'}}>Analizando imagen...</span></>
+                  :<>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color:'var(--muted)'}}><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                    <span style={{fontSize:13,fontWeight:600,color:'var(--text2)'}}>Tomar foto o elegir imagen</span>
+                  </>
+                }
+                <input type="file" accept="image/*" capture="environment"
+                  style={{display:'none'}}
+                  onChange={e=>e.target.files[0]&&processImage(e.target.files[0])}/>
+              </label>
+            </div>
+
+            {aiErr&&(
+              <div style={{background:'var(--red-lt)',border:'1.5px solid rgba(220,38,38,.2)',
+                borderRadius:12,padding:'10px 14px',marginBottom:12,
+                fontSize:12,color:'var(--red)',fontWeight:600}}>
+                ⚠️ {aiErr}
+              </div>
+            )}
+
+            <button className={`btn btn-P${aiLoad||!aiTxt.trim()?' btn-off':''}`}
+              onClick={processAI} style={{marginBottom:10,fontSize:16}}>
+              {aiLoad?<><I n="load" s={18} /><span className="spin" style={{display:'inline-block'}}>⟳</span> Procesando...</>
+                :<><I n="spark" s={18}/> Procesar Pedido</>}
+            </button>
+            <button className="btn btn-S" onClick={()=>setShowIA(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {/* ─ CONFIG ─ */}
+      {showCfg&&(
+        <div className="fs">
+          <div style={{background:'var(--surf)',borderBottom:'2px solid var(--bdr)',
+            padding:'14px 18px',display:'flex',justifyContent:'space-between',alignItems:'center',
+            position:'sticky',top:0,zIndex:10}}>
+            <div className="D" style={{fontSize:22,fontWeight:900,color:'var(--text)'}}>Configuración</div>
+            <button className="ico" onClick={()=>setShowCfg(false)}><I n="x" s={18}/></button>
+          </div>
+          <div style={{padding:'20px 18px 40px',display:'flex',flexDirection:'column',gap:20}}>
+            <div style={{display:'flex',justifyContent:'center'}}>
+              <label style={{cursor:'pointer'}}>
+                <div style={{width:96,height:96,borderRadius:18,border:'2.5px dashed var(--bdr)',
+                  display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'var(--surf2)'}}>
+                  {cfg.logoUrl?<img src={cfg.logoUrl} style={{width:'100%',height:'100%',objectFit:'contain'}}/>
+                    :<div style={{textAlign:'center',color:'var(--muted)'}}>
+                      <I n="img" s={28}/><div style={{fontSize:10,marginTop:4}}>Logo</div>
+                    </div>}
+                </div>
+                <input type="file" accept="image/*" style={{display:'none'}} onChange={onLogo}/>
+              </label>
+            </div>
+
+            <div className="card" style={{display:'flex',flexDirection:'column',gap:12}}>
+              <div className="D" style={{fontSize:13,fontWeight:900,color:'var(--blue)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:2}}>Empresa</div>
+              {[{l:'Nombre',k:'companyName'},{l:'RFC',k:'rfc'},{l:'Dirección',k:'address'},{l:'Teléfono',k:'phone'},{l:'Email',k:'email'}]
+                .map(f=>(
+                <div key={f.k}>
+                  <label className="lbl">{f.l}</label>
+                  <input value={cfg[f.k]} onChange={e=>setCfg({...cfg,[f.k]:e.target.value})}/>
+                </div>
+              ))}
+            </div>
+
+            <div className="card" style={{display:'flex',flexDirection:'column',gap:12}}>
+              <div className="D" style={{fontSize:13,fontWeight:900,color:'var(--blue)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:2}}>🔑 API Keys</div>
+              <div>
+                <label className="lbl">Groq Key (para texto y voz)</label>
+                <input
+                  type="password"
+                  value={cfg.groqKey||''}
+                  onChange={e=>setCfg({...cfg,groqKey:e.target.value})}
+                  placeholder="gsk_..."
+                />
+                <div style={{fontSize:10,color:'var(--muted)',marginTop:5,lineHeight:1.5}}>
+                  Obtén tu key gratis en <strong>console.groq.com</strong>
+                </div>
+              </div>
+              {cfg.groqKey?.trim()&&(
+                <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,
+                  color:'var(--green)',fontWeight:700,padding:'7px 10px',
+                  background:'var(--green-lt)',borderRadius:8}}>
+                  ✓ Groq configurado — dictado y texto activos
+                </div>
+              )}
+              <hr/>
+              <div>
+                <label className="lbl">Gemini Vision Key (para leer fotos)</label>
+                <input
+                  type="password"
+                  value={cfg.visionKey||''}
+                  onChange={e=>setCfg({...cfg,visionKey:e.target.value})}
+                  placeholder="AIzaSy..."
+                />
+                <div style={{fontSize:10,color:'var(--muted)',marginTop:5,lineHeight:1.5}}>
+                  Obtén tu key gratis en <strong>aistudio.google.com/apikey</strong>
+                </div>
+              </div>
+              {cfg.visionKey?.trim()&&(
+                <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,
+                  color:'var(--green)',fontWeight:700,padding:'7px 10px',
+                  background:'var(--green-lt)',borderRadius:8}}>
+                  ✓ Gemini Vision configurado — fotos de pedidos activas
+                </div>
+              )}
+            </div>
+              <div><label className="lbl">Forma de pago</label>
+                <input value={cfg.pay} onChange={e=>setCfg({...cfg,pay:e.target.value})}/></div>
+              <div><label className="lbl">Notas</label>
+                <textarea value={cfg.notes} onChange={e=>setCfg({...cfg,notes:e.target.value})} style={{height:70,resize:'none'}}/></div>
+              <div><label className="lbl">Términos</label>
+                <input value={cfg.terms} onChange={e=>setCfg({...cfg,terms:e.target.value})}/></div>
+            </div>
+
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+              <button className="btn btn-S" onClick={()=>expCSV('m')}
+                style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,padding:'16px 12px',height:'auto',fontSize:11}}>
+                <I n="pkg" s={22}/> Catálogo CSV
+              </button>
+              <button className="btn btn-S" onClick={()=>expCSV('h')}
+                style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,padding:'16px 12px',height:'auto',fontSize:11}}>
+                <I n="hist" s={22}/> Historial CSV
+              </button>
+            </div>
+
+            <button className="btn btn-P" style={{fontSize:16}}
+              onClick={()=>{save(undefined,undefined,cfg);setShowCfg(false);}}>
+              Guardar Cambios
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─ EDIT MAT ─ */}
+      {showEM&&emData&&(
+        <div className="overlay" onClick={()=>setShowEM(false)}>
+          <div className="sheet su" onClick={e=>e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+              <div className="D" style={{fontSize:19,fontWeight:900,color:'var(--text)'}}>
+                {emNew?'Nuevo Producto':'Editar Producto'}
+              </div>
+              <button className="ico" onClick={()=>setShowEM(false)}><I n="x" s={16}/></button>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:12}}>
+              <div><label className="lbl">Nombre del producto</label>
+                <input value={emData.name}
+                  onChange={e=>setEmData({...emData,name:e.target.value.toUpperCase()})}
+                  placeholder="EJ. CEMENTO APASCO 50KG" style={{fontWeight:600}}/></div>
+              <div style={{display:'grid',gridTemplateColumns:'1.5fr 1fr',gap:10}}>
+                <div><label className="lbl">Precio ($)</label>
+                  <input type="number" value={emData.price}
+                    onChange={e=>setEmData({...emData,price:parseFloat(e.target.value)||0})}
+                    style={{fontWeight:700,color:'var(--blue)',fontSize:16}}/></div>
+                <div><label className="lbl">Unidad</label>
+                  <input value={emData.unit}
+                    onChange={e=>setEmData({...emData,unit:e.target.value})}
+                    placeholder="Pza" style={{textAlign:'center',fontWeight:700}}/></div>
+              </div>
+              <div><label className="lbl">Categoría</label>
+                <input value={emData.cat||''}
+                  onChange={e=>setEmData({...emData,cat:e.target.value})}
+                  placeholder="Acero, Cemento, Áridos..."/></div>
+              <div style={{display:'flex',gap:10,marginTop:8}}>
+                <button className="btn btn-S" style={{flex:1}} onClick={()=>setShowEM(false)}>Cancelar</button>
+                <button className="btn btn-P" style={{flex:2}} onClick={()=>{
+                  if(!emData.name.trim())return;
+                  const nm=emNew?[...mats,{...emData,id:uid()}]:mats.map(m=>m.id===emData.id?emData:m);
+                  save(nm,undefined,undefined);setShowEM(false);
+                }}>Guardar</button>
+              </div>
+              {!emNew&&(
+                <button className="btn btn-D" onClick={()=>{
+                  if(confirm('¿Eliminar este producto?')){
+                    save(mats.filter(m=>m.id!==emData.id),undefined,undefined);setShowEM(false);
+                  }
+                }}>
+                  <I n="trash" s={15}/> Eliminar
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUCCESS */}
+      {showOK&&(
+        <div className="success-scr">
+          <div className="pop" style={{textAlign:'center',color:'#fff'}}>
+            <div style={{width:88,height:88,background:'rgba(255,255,255,.2)',borderRadius:'50%',
+              display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 20px'}}>
+              <I n="check" s={44}/>
+            </div>
+            <div className="D" style={{fontSize:38,fontWeight:900}}>¡Guardado!</div>
+            <div style={{fontSize:14,marginTop:6,opacity:.75}}>Cotización registrada con éxito</div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
