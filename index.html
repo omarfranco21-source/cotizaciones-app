@@ -198,6 +198,7 @@ function App(){
   var emNewState=useState(false); var emNew=emNewState[0]; var setEmNew=emNewState[1];
   var showOKState=useState(false); var showOK=showOKState[0]; var setShowOK=showOKState[1];
   var expRecState=useState(null); var expRec=expRecState[0]; var setExpRec=expRecState[1];
+  var editRowState=useState(null); var editRow=editRowState[0]; var setEditRow=editRowState[1];
 
   /* ai */
   var aiTxtState=useState(''); var aiTxt=aiTxtState[0]; var setAiTxt=aiTxtState[1];
@@ -710,25 +711,81 @@ function App(){
                   </span>
                 </div>
                 {items.map(function(it,i){
+                  var isEditing=editRow===it.rowId;
                   return(
-                    <div key={it.rowId} className="irow" style={{animationDelay:i*.04+'s'}}>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div className="D" style={{fontSize:13,fontWeight:800,color:'var(--text)',
-                          textTransform:'uppercase',overflow:'hidden',textOverflow:'ellipsis',
-                          whiteSpace:'nowrap',paddingRight:8}}>
-                          {it.name}
+                    <div key={it.rowId} className="irow" style={{animationDelay:i*.04+'s',flexDirection:'column',alignItems:'stretch',gap:0}}>
+                      {/* Normal view */}
+                      {!isEditing&&(
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div className="D" style={{fontSize:13,fontWeight:800,color:'var(--text)',
+                              textTransform:'uppercase',overflow:'hidden',textOverflow:'ellipsis',
+                              whiteSpace:'nowrap',paddingRight:8}}>
+                              {it.name}
+                            </div>
+                            <div style={{fontSize:11,color:'var(--muted)',marginTop:3}}>
+                              {it.qty} {it.unit} × {fmt(it.price)}
+                            </div>
+                          </div>
+                          <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+                            <span className="D" style={{fontSize:16,fontWeight:900,color:'var(--blue)'}}>{fmt(it.total)}</span>
+                            <button className="ico bl" style={{padding:7}} title="Editar"
+                              onClick={function(){setEditRow(it.rowId);}}>
+                              <I n="edit" s={14}/>
+                            </button>
+                            <button className="ico rd" style={{padding:7}}
+                              onClick={function(){setItems(function(p){return p.filter(function(x){return x.rowId!==it.rowId;});});}}>
+                              <I n="x" s={14}/>
+                            </button>
+                          </div>
                         </div>
-                        <div style={{fontSize:11,color:'var(--muted)',marginTop:3}}>
-                          {it.qty} {it.unit} × {fmt(it.price)}
+                      )}
+                      {/* Edit view */}
+                      {isEditing&&(
+                        <div className="fu">
+                          <div className="D" style={{fontSize:12,fontWeight:800,color:'var(--text)',
+                            textTransform:'uppercase',marginBottom:8,overflow:'hidden',
+                            textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                            ✏️ {it.name}
+                          </div>
+                          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+                            <div>
+                              <label className="lbl">Cantidad ({it.unit})</label>
+                              <input type="number" defaultValue={it.qty} id={'eq-'+it.rowId}
+                                style={{fontSize:18,fontWeight:800,textAlign:'center'}}
+                                min="0"/>
+                            </div>
+                            <div>
+                              <label className="lbl">Precio ($)</label>
+                              <input type="number" defaultValue={it.price} id={'ep-'+it.rowId}
+                                style={{fontSize:16,fontWeight:700,color:'var(--blue)',
+                                  background:'var(--blue-faint)',borderColor:'var(--blue-bdr)'}}/>
+                            </div>
+                          </div>
+                          <div style={{display:'flex',gap:8}}>
+                            <button className="btn btn-S" style={{flex:1,padding:'9px'}}
+                              onClick={function(){setEditRow(null);}}>
+                              Cancelar
+                            </button>
+                            <button className="btn btn-P" style={{flex:2,padding:'9px'}}
+                              onClick={function(){
+                                var qEl=document.getElementById('eq-'+it.rowId);
+                                var pEl=document.getElementById('ep-'+it.rowId);
+                                var newQty=parseFloat(qEl?qEl.value:it.qty)||it.qty;
+                                var newPrice=parseFloat(pEl?pEl.value:it.price)||it.price;
+                                setItems(function(prev){
+                                  return prev.map(function(x){
+                                    if(x.rowId!==it.rowId)return x;
+                                    return Object.assign({},x,{qty:newQty,price:newPrice,total:newQty*newPrice});
+                                  });
+                                });
+                                setEditRow(null);
+                              }}>
+                              ✓ Aplicar
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                      <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
-                        <span className="D" style={{fontSize:16,fontWeight:900,color:'var(--blue)'}}>{fmt(it.total)}</span>
-                        <button className="ico rd" style={{padding:8}}
-                          onClick={function(){setItems(function(p){return p.filter(function(x){return x.rowId!==it.rowId;});});}}>
-                          <I n="x" s={14}/>
-                        </button>
-                      </div>
+                      )}
                     </div>
                   );
                 })}
@@ -940,7 +997,7 @@ function App(){
                 </div>
                 <div>
                   <div className="D" style={{fontSize:18,fontWeight:900,color:'var(--text)'}}>Asistente IA</div>
-                  <div style={{fontSize:10,color:'var(--muted)',fontWeight:600}}>Texto · Voz</div>
+                  <div style={{fontSize:10,color:'var(--muted)',fontWeight:600}}>Texto · Voz · Foto</div>
                 </div>
               </div>
               <button className="ico" onClick={closeIA}><I n="x" s={16}/></button>
