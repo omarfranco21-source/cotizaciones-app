@@ -114,6 +114,13 @@ var useRef=React.useRef;
 
 var AID="matexpress_v7_3";
 var fmt=function(n){return new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n);};
+var fmtPhone=function(p){
+  if(!p||p==='—')return p||'—';
+  var d=p.replace(/\D/g,'');
+  if(d.length===10)return d.slice(0,3)+' - '+d.slice(3,6)+' - '+d.slice(6);
+  if(d.length===7)return d.slice(0,3)+' - '+d.slice(3);
+  return p;
+};
 var uid=function(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);};
 
 /* ── ICONS ── */
@@ -417,7 +424,7 @@ function App(){
     lines.push('📋 FOLIO: '+r.id);
     lines.push('📅 '+r.date);
     lines.push('👤 Cliente: '+r.client);
-    if(r.phone!=='—')lines.push('📞 Tel: '+r.phone);
+    if(r.phone!=='—')lines.push('📞 Tel: '+fmtPhone(r.phone));
     lines.push('');
     lines.push('PRODUCTOS:');
     r.items.forEach(function(it){
@@ -475,7 +482,7 @@ function App(){
     doc.setTextColor(255,255,255);doc.setFontSize(19);doc.setFont('helvetica','bold');
     doc.text(s.companyName.toUpperCase(),56,20);
     doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(180,200,255);
-    doc.text('RFC: '+s.rfc+'  ·  Tel: '+s.phone,56,28);
+    doc.text('RFC: '+s.rfc+'  ·  Tel: '+fmtPhone(s.phone),56,28);
     doc.text(s.address,56,34);doc.text(s.email,56,40);
     doc.setTextColor(255,230,80);doc.setFontSize(10);doc.setFont('helvetica','bold');
     doc.text('FOLIO #'+rec.id,195,16,{align:'right'});
@@ -485,7 +492,7 @@ function App(){
     doc.setFontSize(7);doc.setTextColor(100,110,150);
     doc.text('CLIENTE',20,61);doc.text('TELÉFONO',130,61);
     doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(10,15,46);
-    doc.text(rec.client.toUpperCase(),20,69);doc.text(rec.phone,130,69);
+    doc.text(rec.client.toUpperCase(),20,69);doc.text(fmtPhone(rec.phone),130,69);
     doc.autoTable({
       startY:80,
       head:[['PRODUCTO','CANT','UNIDAD','PRECIO UNIT.','SUBTOTAL']],
@@ -906,7 +913,7 @@ function App(){
                       </div>
                       {r.phone!=='—'&&(
                         <div style={{fontSize:11,color:'var(--muted)',marginTop:3,display:'flex',alignItems:'center',gap:4}}>
-                          <I n="phone" s={11}/> {r.phone}
+                          <I n="phone" s={11}/> {fmtPhone(r.phone)}
                         </div>
                       )}
                       <div className="D" style={{fontSize:24,fontWeight:900,color:'var(--blue)',marginTop:4}}>
