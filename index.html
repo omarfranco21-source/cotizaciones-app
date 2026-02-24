@@ -650,6 +650,150 @@ function App(){
     else{csv+='Folio,Fecha,Cliente,Telefono,Total,Estado\n';records.forEach(function(r){csv+='"'+r.id+'","'+r.date+'","'+r.client+'","'+r.phone+'",'+r.total+',"'+(r.estado||'')+'"\n';});}
     var a=document.createElement('a');a.href=encodeURI(csv);a.download=type+'.csv';a.click();
   }
+
+  function importXLS(file){
+    var reader=new FileReader();
+    reader.onloadend=function(){
+      try{
+        var data=new Uint8Array(reader.result);
+
+        /* Parse SST with CONTINUE records */
+        function findSST(){
+          for(var i=0;i<data.length-4;i++){
+            if(data[i]===0xFC&&data[i+1]===0x00){
+              var rl=(data[i+2])|(data[i+3]<<8);
+              if(rl>8){
+                var body=[];
+                for(var k=i+4;k<i+4+rl&&k<data.length;k++) body.push(data[k]);
+                var j=i+4+rl;
+                while(j<data.length-4){
+                  if(data[j]===0x3C&&data[j+1]===0x00){
+                    var nrl=(data[j+2])|(data[j+3]<<8);
+                    if(nrl>0&&nrl<65536){for(var k=j+4;k<j+4+nrl&&k<data.length;k++) body.push(data[k]);j+=4+nrl;}
+                    else break;
+                  }else break;
+                }
+                var unique=(body[4])|(body[5]<<8)|(body[6]<<16)|(body[7]<<24);
+                var sst=[];var off=8;
+                while(sst.length<unique&&off<body.length-2){
+                  var cc=(body[off])|(body[off+1]<<8);
+                  if(cc>1000||off+3>body.length)break;
+                  var fl=body[off+2];var o2=off+3;var ex=0;
+                  if(fl&8&&o2+2<=body.length){var rc=(body[o2])|(body[o2+1]<<8);o2+=2;ex+=rc*4;}
+                  if(fl&4&&o2+4<=body.length){var al=(body[o2])|(body[o2+1]<<8)|(body[o2+2]<<16)|(body[o2+3]<<24);o2+=4;ex+=al;}
+                  var s='';
+                  if(fl&1){for(var k=0;k<cc;k++){var cp=(body[o2+k*2])|(body[o2+k*2+1]<<8);s+=String.fromCharCode(cp);}off=o2+cc*2+ex;}
+                  else{for(var k=0;k<cc;k++) s+=String.fromCharCode(body[o2+k]&0xFF);off=o2+cc+ex;}
+                  sst.push(s);
+                }
+                return sst;
+              }
+            }
+          }
+          return [];
+        }
+
+        var sst=findSST();
+        if(sst.length===0){alert('No se pudo leer el archivo XLS.\nVerifica que sea formato .xls (Excel 97-2003).');return;}
+
+        /* Build rows: strings via LABELSST, numbers via NUMBER and RK */
+        var rows={};
+        function setCell(row,col,val){
+          if(!rows[row]) rows[row]={};
+          rows[row][col]=val;
+        }
+
+        for(var i=0;i<data.length-14;i++){
+          /* LABELSST — string cell */
+          if(data[i]===0xFD&&data[i+1]===0x00){
+            var rl=(data[i+2])|(data[i+3]<<8);
+            if(rl===10){
+              var row=(data[i+4])|(data[i+5]<<8);
+              var col=(data[i+6])|(data[i+7]<<8);
+              var idx=(data[i+10])|(data[i+11]<<8)|(data[i+12]<<16)|(data[i+13]<<24);
+              if(idx<sst.length) setCell(row,col,sst[idx].trim());
+            }
+          }
+          /* NUMBER — 8-byte float */
+          if(data[i]===0x03&&data[i+1]===0x02&&i+18<=data.length){
+            var rl=(data[i+2])|(data[i+3]<<8);
+            if(rl===14){
+              var row=(data[i+4])|(data[i+5]<<8);
+              var col=(data[i+6])|(data[i+7]<<8);
+              var dv=new DataView(data.buffer,i+10,8);
+              setCell(row,col,Math.round(dv.getFloat64(0,true)*10000)/10000);
+            }
+          }
+          /* RK — compressed number */
+          if(data[i]===0x7E&&data[i+1]===0x02&&i+14<=data.length){
+            var rl=(data[i+2])|(data[i+3]<<8);
+            if(rl===10){
+              var row=(data[i+4])|(data[i+5]<<8);
+              var col=(data[i+6])|(data[i+7]<<8);
+              var rk=(data[i+10])|(data[i+11]<<8)|(data[i+12]<<16)|(data[i+13]<<24);
+              var val;
+              if(rk&2){ val=(rk>>2)/(rk&1?100.0:1.0); }
+              else{
+                var dv=new DataView(new ArrayBuffer(8));
+                dv.setUint32(4,(rk&0xFFFFFFFC),true);
+                val=dv.getFloat64(0,true)/(rk&1?100.0:1.0);
+              }
+              setCell(row,col,Math.round(val*10000)/10000);
+            }
+          }
+        }
+
+        /* Extract products
+           Col A=0: Descripcion
+           Col B=1: Unidad
+           Col C=2: Departamento/Categoria
+           Col D=3: Precio                    */
+        var products=[];
+        var rowNums=Object.keys(rows).map(Number).sort(function(a,b){return a-b;});
+        var headerSkipped=false;
+
+        for(var ri=0;ri<rowNums.length;ri++){
+          var r=rowNums[ri];
+          var row=rows[r];
+          var desc=String(row[0]||'').trim();
+          var unit=String(row[1]||'Pieza').trim();
+          var cat= String(row[2]||'').trim();
+          var price=parseFloat(row[3])||0;
+
+          /* Skip header row */
+          if(!headerSkipped&&(desc.toLowerCase()==='descripcion'||desc.toLowerCase()==='descripción'||desc.toLowerCase()==='producto'||desc.toLowerCase()==='nombre')){
+            headerSkipped=true;
+            continue;
+          }
+          /* Skip empty or invalid rows */
+          if(!desc||desc===''||desc==='0') continue;
+
+          products.push({id:uid(),name:desc,price:price,unit:unit||'Pieza',cat:cat});
+        }
+
+        if(products.length===0){alert('No se encontraron productos.\nVerifica que la columna A tenga las descripciones.');return;}
+
+        /* Merge — skip exact name duplicates */
+        var existing={};
+        mats.forEach(function(m){existing[m.name.toUpperCase()]=true;});
+        var newProds=products.filter(function(p){return !existing[p.name.toUpperCase()];});
+        var merged=mats.concat(newProds);
+        save(merged,undefined,undefined,undefined);
+
+        var sinPrecio=newProds.filter(function(p){return p.price===0;}).length;
+        var msg='Importacion completada\n\n';
+        msg+='Nuevos: '+newProds.length+'\n';
+        msg+='Ya existian: '+(products.length-newProds.length)+'\n';
+        msg+='Total catalogo: '+merged.length;
+        if(sinPrecio>0) msg+='\n\nOJO: '+sinPrecio+' productos con precio $0.00';
+        alert(msg);
+
+      }catch(e){
+        alert('Error al leer archivo: '+e.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
   function onLogo(e){
     var f=e.target.files[0];if(!f)return;
     var rd=new FileReader();
@@ -900,7 +1044,13 @@ function App(){
           <div className="fu" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:20}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 2px 0'}}>
               <div><div className="D" style={{fontSize:24,fontWeight:900}}>Catalogo</div><div style={{fontSize:11,color:'var(--muted)',marginTop:1}}>{mats.length} productos</div></div>
-              <button className="btn btn-P" style={{width:'auto',padding:'10px 18px'}} onClick={function(){setEmNew(true);setEmData({name:'',price:'',unit:'Pza',cat:''});setShowEM(true);}}><I n="plus" s={16}/> Nuevo</button>
+              <div style={{display:'flex',gap:8}}>
+                <label className="btn btn-S" style={{width:'auto',padding:'10px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
+                  <I n="dl" s={15}/> Importar XLS
+                  <input type="file" accept=".xls,.xlsx" style={{display:'none'}} onChange={function(e){if(e.target.files&&e.target.files[0]){importXLS(e.target.files[0]);}e.target.value='';}}/>
+                </label>
+                <button className="btn btn-P" style={{width:'auto',padding:'10px 18px'}} onClick={function(){setEmNew(true);setEmData({name:'',price:'',unit:'Pza',cat:''});setShowEM(true);}}><I n="plus" s={16}/> Nuevo</button>
+              </div>
             </div>
             <input placeholder="Filtrar productos..." value={mflt} onChange={function(e){setMflt(e.target.value);}}/>
             {mats.filter(function(m){return !mflt||m.name.toLowerCase().indexOf(mflt.toLowerCase())>=0||(m.cat||'').toLowerCase().indexOf(mflt.toLowerCase())>=0;}).map(function(m){return(
