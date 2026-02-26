@@ -252,13 +252,6 @@ function App(){
   var showNoDataS=useState(false); var showNoData=showNoDataS[0]; var setShowNoData=showNoDataS[1];
   var showReminderS=useState(false); var showReminder=showReminderS[0]; var setShowReminder=showReminderS[1];
   var editRecS=useState(null); var editRec=editRecS[0]; var setEditRec=editRecS[1];
-  var showGHSetupS=useState(false); var showGHSetup=showGHSetupS[0]; var setShowGHSetup=showGHSetupS[1];
-  var ghSyncS=useState('idle'); var ghSync=ghSyncS[0]; var setGhSync=ghSyncS[1];
-  /* ghSync: 'idle' | 'saving' | 'ok' | 'error' */
-  var ghErrS=useState(''); var ghErr=ghErrS[0]; var setGhErr=ghErrS[1];
-  var ghFormS=useState({user:'',repo:'',token:'',file:'data.json'});
-  var ghForm=ghFormS[0]; var setGhForm=ghFormS[1];
-
   /* ai */
   var aiTxtS=useState(''); var aiTxt=aiTxtS[0]; var setAiTxt=aiTxtS[1];
   var aiLoadS=useState(false); var aiLoad=aiLoadS[0]; var setAiLoad=aiLoadS[1];
@@ -273,69 +266,43 @@ function App(){
   /* mat filter */
   var mfltS=useState(''); var mflt=mfltS[0]; var setMflt=mfltS[1];
 
-  var AID='matexpress_v7_4';
-  var GH_KEY='matexpress_gh_cfg';
+  /* sync indicator */
+  var syncStS=useState('idle'); var syncSt=syncStS[0]; var setSyncSt=syncStS[1];
 
-  /* ── GITHUB HELPERS ── */
-  function getGHCfg(){
-    try{var s=localStorage.getItem(GH_KEY);return s?JSON.parse(s):null;}catch(e){return null;}
-  }
-  function saveGHCfg(cfg){
-    try{localStorage.setItem(GH_KEY,JSON.stringify(cfg));}catch(e){}
-  }
-  function ghApiUrl(gh){
-    var file=gh.file||'data.json';
-    return 'https://api.github.com/repos/'+gh.user+'/'+gh.repo+'/contents/'+file;
-  }
+  var DB_NAME='matexpress';
+  var DB_STORE='data';
+  var DB_KEY='main';
 
-  /* Load data from GitHub */
-  function loadFromGH(gh, onSuccess, onFail){
-    var url=ghApiUrl(gh)+'?t='+Date.now();
-    fetch(url,{headers:{
-      'Authorization':'token '+gh.token,
-      'Accept':'application/vnd.github.v3+json'
-    }}).then(function(res){
-      if(res.status===404){onFail('404');return;}
-      if(!res.ok){onFail('HTTP '+res.status);return;}
-      return res.json();
-    }).then(function(d){
-      if(!d)return;
-      try{
-        var content=atob(d.content.replace(/\n/g,''));
-        var parsed=JSON.parse(content);
-        onSuccess(parsed, d.sha);
-      }catch(e){onFail('Parse error: '+e.message);}
-    }).catch(function(e){onFail(e.message);});
+  /* ── IndexedDB helpers ── */
+  function openDB(cb){
+    var req=indexedDB.open(DB_NAME,1);
+    req.onupgradeneeded=function(e){
+      e.target.result.createObjectStore(DB_STORE);
+    };
+    req.onsuccess=function(e){cb(null,e.target.result);};
+    req.onerror=function(e){cb(e.target.error,null);};
   }
 
-  /* Save data to GitHub */
-  var ghShaRef=useRef('');
-  function pushToGH(gh, data, onDone, onFail){
-    var content=btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2))));
-    var body={message:'MatExpress sync '+new Date().toLocaleString('es-MX'),content:content};
-    if(ghShaRef.current) body.sha=ghShaRef.current;
-    fetch(ghApiUrl(gh),{
-      method:'PUT',
-      headers:{
-        'Authorization':'token '+gh.token,
-        'Accept':'application/vnd.github.v3+json',
-        'Content-Type':'application/json'
-      },
-      body:JSON.stringify(body)
-    }).then(function(res){
-      return res.json().then(function(d){return {ok:res.ok,d:d,status:res.status};});
-    }).then(function(r){
-      if(r.ok){
-        if(r.d&&r.d.content&&r.d.content.sha) ghShaRef.current=r.d.content.sha;
-        onDone();
-      }else{
-        var msg=r.d&&r.d.message?r.d.message:'HTTP '+r.status;
-        onFail(msg);
-      }
-    }).catch(function(e){onFail(e.message);});
+  function idbGet(cb){
+    openDB(function(err,db){
+      if(err){cb(err,null);return;}
+      var tx=db.transaction(DB_STORE,'readonly');
+      var req=tx.objectStore(DB_STORE).get(DB_KEY);
+      req.onsuccess=function(e){cb(null,e.target.result||null);};
+      req.onerror=function(e){cb(e.target.error,null);};
+    });
   }
 
-  /* Apply loaded data to state */
+  function idbPut(val,cb){
+    openDB(function(err,db){
+      if(err){if(cb)cb(err);return;}
+      var tx=db.transaction(DB_STORE,'readwrite');
+      var req=tx.objectStore(DB_STORE).put(val,DB_KEY);
+      req.onsuccess=function(){if(cb)cb(null);};
+      req.onerror=function(e){if(cb)cb(e.target.error);};
+    });
+  }
+
   function applyData(p){
     if(p.mats)setMats(p.mats);
     if(p.records)setRecords(p.records);
@@ -343,66 +310,43 @@ function App(){
     if(p.clients)setClients(p.clients);
   }
 
-  /* ── STARTUP: load from GitHub, fallback to localStorage ── */
+  /* ── STARTUP: load from IndexedDB ── */
   useEffect(function(){
-    var gh=getGHCfg();
-    if(gh&&gh.user&&gh.repo&&gh.token){
-      /* Try GitHub first */
-      setGhSync('saving');
-      loadFromGH(gh, function(parsed, sha){
-        ghShaRef.current=sha||'';
-        applyData(parsed);
-        /* Also cache in localStorage */
-        try{localStorage.setItem(AID,JSON.stringify(parsed));}catch(e){}
-        setGhSync('ok');
-        setTimeout(function(){setGhSync('idle');},2000);
-      }, function(err){
-        /* GitHub failed — fallback to localStorage cache */
-        setGhSync('error');
-        setGhErr('No se pudo conectar a GitHub: '+err+'. Usando datos locales.');
+    idbGet(function(err,data){
+      if(data){
+        applyData(data);
+      } else {
+        /* Fallback: migrate from localStorage if exists */
         var KEYS=['matexpress_v7_4','matexpress_v7_3','matexpress_v7_2','matexpress_v7_1','matexpress_v7'];
         var s=null;
         for(var i=0;i<KEYS.length;i++){s=localStorage.getItem(KEYS[i]);if(s)break;}
-        if(s){try{applyData(JSON.parse(s));}catch(ex){}}
-        else{setShowNoData(true);}
-        setTimeout(function(){setGhSync('idle');setGhErr('');},4000);
-      });
-    } else {
-      /* No GitHub configured — use localStorage */
-      var KEYS=['matexpress_v7_4','matexpress_v7_3','matexpress_v7_2','matexpress_v7_1','matexpress_v7'];
-      var s=null;
-      for(var i=0;i<KEYS.length;i++){s=localStorage.getItem(KEYS[i]);if(s)break;}
-      if(s){try{applyData(JSON.parse(s));}catch(e){setShowNoData(true);}}
-      else{setShowNoData(true);}
-    }
+        if(s){
+          try{
+            var p=JSON.parse(s);
+            applyData(p);
+            idbPut(p,null); /* migrate to IndexedDB */
+          }catch(ex){}
+        } else {
+          setShowNoData(true);
+        }
+      }
+    });
   },[]);
 
-  /* ── SAVE: localStorage + GitHub ── */
+  /* ── SAVE: IndexedDB only (never lost by Safari) ── */
   function save(m,r,c,cl){
     var nm=m!==undefined?m:mats;
     var nr=r!==undefined?r:records;
     var nc=c!==undefined?c:cfg;
     var ncl=cl!==undefined?cl:clients;
     var payload={mats:nm,records:nr,cfg:nc,clients:ncl};
-
-    /* Always write localStorage as fast cache */
-    try{localStorage.setItem(AID,JSON.stringify(payload));}catch(e){}
-
-    /* Push to GitHub if configured */
-    var gh=getGHCfg();
-    if(gh&&gh.user&&gh.repo&&gh.token){
-      setGhSync('saving');
-      pushToGH(gh, payload, function(){
-        setGhSync('ok');
-        setTimeout(function(){setGhSync('idle');},2000);
-      }, function(err){
-        setGhSync('error');
-        setGhErr(err);
-        setTimeout(function(){setGhSync('idle');setGhErr('');},5000);
-      });
-    }
-
+    setSyncSt('saving');
+    idbPut(payload,function(err){
+      if(err){setSyncSt('idle');}
+      else{setSyncSt('ok');setTimeout(function(){setSyncSt('idle');},1500);}
+    });
     if(m!==undefined)setMats(m);
+
     if(r!==undefined)setRecords(r);
     if(c!==undefined)setCfg(c);
     if(cl!==undefined)setClients(cl);
@@ -924,17 +868,13 @@ function App(){
           </div>
         </div>
         <div style={{display:'flex',gap:8}}>
-          {/* GitHub sync indicator */}
-          <button className={'ico '+(ghSync==='saving'?'bl':ghSync==='ok'?'gn':ghSync==='error'?'rd':getGHCfg()?'gn':'')}
-            title={ghSync==='saving'?'Sincronizando...':ghSync==='ok'?'Guardado en GitHub':ghSync==='error'?'Error GitHub':getGHCfg()?'GitHub conectado':'Conectar GitHub'}
-            onClick={function(){setGhForm(getGHCfg()||{user:'',repo:'',token:'',file:'data.json'});setShowGHSetup(true);}}>
-            {ghSync==='saving'
-              ?<span style={{fontSize:13,animation:'spin 1s linear infinite',display:'inline-block'}}>⟳</span>
-              :ghSync==='ok'?<I n="check" s={18}/>
-              :ghSync==='error'?<I n="x" s={18}/>
-              :<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-            }
-          </button>
+          {syncSt!=='idle'&&(
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',width:36,height:36,borderRadius:10,background:syncSt==='ok'?'var(--green-lt)':'var(--blue-faint)',border:'1.5px solid '+(syncSt==='ok'?'rgba(22,163,74,.2)':'var(--blue-bdr)'),color:syncSt==='ok'?'var(--green)':'var(--blue)'}}>
+              {syncSt==='saving'
+                ?<span style={{fontSize:15,display:'inline-block',animation:'spin 0.8s linear infinite'}}>⟳</span>
+                :<I n="check" s={16}/>}
+            </div>
+          )}
           <button className={'ico '+(hasLogo?'bl':'wh')} onClick={function(){setAiTxt('');setAiErr('');setShowIA(true);}}><I n="spark" s={18}/></button>
           <button className={'ico '+(hasLogo?'':'wh')} style={hasLogo?{}:{background:'rgba(255,255,255,.18)',border:'1.5px solid rgba(255,255,255,.3)',color:'#fff'}} onClick={function(){setShowCfg(true);}}><I n="gear" s={18}/></button>
         </div>
@@ -1419,108 +1359,6 @@ function App(){
                 }}>Guardar</button>
               </div>
               {!emNew&&<button className="btn btn-D" onClick={function(){if(confirm('Eliminar producto?')){save(mats.filter(function(m){return m.id!==emData.id;}),undefined,undefined,undefined);setShowEM(false);}}}><I n="trash" s={15}/> Eliminar</button>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* GITHUB ERROR TOAST */}
-      {ghSync==='error'&&ghErr&&(
-        <div style={{position:'fixed',top:70,left:'50%',transform:'translateX(-50%)',zIndex:400,background:'var(--red)',color:'#fff',borderRadius:12,padding:'10px 18px',fontSize:12,fontWeight:700,maxWidth:380,boxShadow:'0 4px 20px rgba(0,0,0,.25)',textAlign:'center'}}>
-          ⚠️ {ghErr}
-        </div>
-      )}
-
-      {/* GITHUB SETUP MODAL */}
-      {showGHSetup&&(
-        <div className="overlay" style={{zIndex:300,alignItems:'center'}}>
-          <div className="sheet su" style={{borderRadius:24,maxWidth:440,margin:'0 16px',padding:28}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-              <div style={{display:'flex',alignItems:'center',gap:10}}>
-                <div style={{width:40,height:40,background:'var(--blue)',borderRadius:11,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff'}}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-                </div>
-                <div>
-                  <div className="D" style={{fontSize:18,fontWeight:900}}>Sync con GitHub</div>
-                  <div style={{fontSize:10,color:'var(--muted)',fontWeight:600}}>Datos permanentes en la nube</div>
-                </div>
-              </div>
-              <button className="ico" onClick={function(){setShowGHSetup(false);}}><I n="x" s={16}/></button>
-            </div>
-
-            {/* Status badge */}
-            {getGHCfg()&&(
-              <div style={{background:'var(--green-lt)',border:'1.5px solid rgba(22,163,74,.2)',borderRadius:12,padding:'10px 14px',marginBottom:16,display:'flex',alignItems:'center',gap:8}}>
-                <span style={{fontSize:16}}>✅</span>
-                <div>
-                  <div style={{fontSize:12,fontWeight:700,color:'var(--green)'}}>Conectado</div>
-                  <div style={{fontSize:11,color:'var(--text2)'}}>{getGHCfg().user}/{getGHCfg().repo} → {getGHCfg().file||'data.json'}</div>
-                </div>
-              </div>
-            )}
-
-            {/* Explanation */}
-            <div style={{background:'var(--blue-faint)',borderRadius:12,padding:'12px 14px',marginBottom:16,border:'1.5px solid var(--blue-bdr)'}}>
-              <div style={{fontSize:12,color:'var(--text2)',lineHeight:1.8}}>
-                Tus datos se guardan en un archivo <strong>data.json</strong> dentro de tu repo de GitHub. Nunca se borran aunque Safari limpie la memoria del iPhone.<br/><br/>
-                <strong>Pasos para obtener tu Token:</strong><br/>
-                1. Ve a <strong>github.com → Settings → Developer settings</strong><br/>
-                2. <strong>Personal access tokens → Tokens (classic)</strong><br/>
-                3. <strong>Generate new token</strong> — marca solo <strong>repo</strong><br/>
-                4. Copia el token y pégalo aquí
-              </div>
-            </div>
-
-            <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:16}}>
-              <div>
-                <label className="lbl">Usuario de GitHub</label>
-                <input value={ghForm.user} onChange={function(e){setGhForm(Object.assign({},ghForm,{user:e.target.value.trim()}));}} placeholder="tu-usuario"/>
-              </div>
-              <div>
-                <label className="lbl">Nombre del repositorio</label>
-                <input value={ghForm.repo} onChange={function(e){setGhForm(Object.assign({},ghForm,{repo:e.target.value.trim()}));}} placeholder="mi-repo (donde tienes el index.html)"/>
-              </div>
-              <div>
-                <label className="lbl">Archivo de datos (no cambiar)</label>
-                <input value={ghForm.file||'data.json'} onChange={function(e){setGhForm(Object.assign({},ghForm,{file:e.target.value.trim()}));}} placeholder="data.json"/>
-              </div>
-              <div>
-                <label className="lbl">Personal Access Token</label>
-                <input type="password" value={ghForm.token} onChange={function(e){setGhForm(Object.assign({},ghForm,{token:e.target.value.trim()}));}} placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"/>
-              </div>
-            </div>
-
-            <div style={{display:'flex',flexDirection:'column',gap:10}}>
-              <button className="btn btn-P" onClick={function(){
-                if(!ghForm.user||!ghForm.repo||!ghForm.token){alert('Completa usuario, repo y token.');return;}
-                var gh=Object.assign({},ghForm,{file:ghForm.file||'data.json'});
-                saveGHCfg(gh);
-                setShowGHSetup(false);
-                /* Immediately do a first sync push */
-                var payload={mats:mats,records:records,cfg:cfg,clients:clients};
-                setGhSync('saving');
-                pushToGH(gh,payload,function(){
-                  setGhSync('ok');
-                  setTimeout(function(){setGhSync('idle');},2500);
-                },function(err){
-                  setGhSync('error');
-                  setGhErr('Primer sync falló: '+err+'. Verifica usuario/repo/token.');
-                  setTimeout(function(){setGhSync('idle');setGhErr('');},6000);
-                });
-              }}>
-                Guardar y sincronizar ahora
-              </button>
-              {getGHCfg()&&(
-                <button className="btn btn-D" onClick={function(){
-                  if(confirm('¿Desconectar GitHub? Los datos locales se conservan.')){
-                    localStorage.removeItem(GH_KEY);
-                    setShowGHSetup(false);
-                  }
-                }}>
-                  Desconectar GitHub
-                </button>
-              )}
-              <button className="btn btn-S" onClick={function(){setShowGHSetup(false);}}>Cerrar</button>
             </div>
           </div>
         </div>
