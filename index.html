@@ -275,6 +275,17 @@ function App(){
   /* animated card */
   var showCardS=useState(false); var showCard=showCardS[0]; var setShowCard=showCardS[1];
   var cardRecS=useState(null); var cardRec=cardRecS[0]; var setCardRec=cardRecS[1];
+  /* seguimiento días input en cotización */
+  var segDiasS=useState('3'); var segDias=segDiasS[0]; var setSegDias=segDiasS[1];
+  /* alertas de pendientes vencidas */
+  var showAlertsS=useState(false); var showAlerts=showAlertsS[0]; var setShowAlerts=showAlertsS[1];
+  var alertRecsS=useState([]); var alertRecs=alertRecsS[0]; var setAlertRecs=alertRecsS[1];
+  /* historial por cliente */
+  var clienteViewS=useState(null); var clienteView=clienteViewS[0]; var setClienteView=clienteViewS[1];
+  /* producto al vuelo */
+  var showFlyS=useState(false); var showFly=showFlyS[0]; var setShowFly=showFlyS[1];
+  var flyDataS=useState({name:'',price:'',unit:'Pza',cat:''});
+  var flyData=flyDataS[0]; var setFlyData=flyDataS[1];
 
   var DB_NAME='matexpress';
   var DB_STORE='data';
@@ -315,6 +326,42 @@ function App(){
     if(p.records)setRecords(p.records);
     if(p.cfg)setCfg(Object.assign({},DCFG,p.cfg));
     if(p.clients)setClients(p.clients);
+    /* check pending alerts */
+    if(p.records) checkAlerts(p.records);
+  }
+
+  function checkAlerts(recs){
+    var now=Date.now();
+    var vencidas=recs.filter(function(r){
+      if((r.estado||'Pendiente')!=='Pendiente') return false;
+      if(!r.alertDate) return false;
+      return now>=r.alertDate;
+    });
+    if(vencidas.length>0){setAlertRecs(vencidas);setShowAlerts(true);}
+  }
+
+  function saveSeguimiento(recId, dias){
+    var alertDate=Date.now()+(parseInt(dias)||3)*24*60*60*1000;
+    var nr=records.map(function(r){return r.id===recId?Object.assign({},r,{segDias:parseInt(dias),alertDate:alertDate}):r;});
+    save(undefined,nr,undefined,undefined);
+  }
+
+  function addFlyProduct(){
+    var name=flyData.name.trim();
+    var price=parseFloat(flyData.price)||0;
+    var unit=flyData.unit.trim()||'Pza';
+    var cat=flyData.cat.trim();
+    if(!name){alert('Escribe el nombre del producto.');return;}
+    var newMat={id:uid(),name:name,price:price,unit:unit,cat:cat,fav:false};
+    var nm=mats.concat([newMat]);
+    save(nm,undefined,undefined,undefined);
+    /* add to current quote */
+    var q=1;
+    var newItem=Object.assign({},newMat,{rowId:uid(),qty:q,total:price*q});
+    setItems(items.concat([newItem]));
+    setShowFly(false);
+    setFlyData({name:'',price:'',unit:'Pza',cat:''});
+    setSrch('');setDrop(false);setSel(null);
   }
 
   /* ── STARTUP: load from IndexedDB ── */
@@ -371,7 +418,8 @@ function App(){
   var filteredRecs=records.filter(function(r){
     var mt=!hSrch||r.client.toLowerCase().indexOf(hSrch.toLowerCase())>=0||r.id.toLowerCase().indexOf(hSrch.toLowerCase())>=0||r.phone.indexOf(hSrch)>=0;
     var me=hEst==='Todos'||(r.estado||'Pendiente')===hEst;
-    return mt&&me;
+    var mc=!clienteView||r.client===clienteView;
+    return mt&&me&&mc;
   });
 
   var estMap={
@@ -426,7 +474,9 @@ function App(){
       estado:'Pendiente',
       items:items.slice(),total:total,
       date:new Date().toLocaleString('es-MX'),
-      snap:Object.assign({},cfg)
+      snap:Object.assign({},cfg),
+      segDias:parseInt(segDias)||3,
+      alertDate:Date.now()+(parseInt(segDias)||3)*24*60*60*1000
     };
     var newCfg=Object.assign({},cfg,{folioNum:currentNum+1});
     var nr=[rec].concat(records);
@@ -1085,6 +1135,16 @@ function App(){
                     );})}
                   </div>
                 )}
+                {drop&&srch&&filt.length===0&&(
+                  <div className="drop" style={{position:'absolute',left:0,right:0,zIndex:30,borderTop:'1px solid var(--bdr)'}}>
+                    <div style={{padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <span style={{fontSize:12,color:'var(--muted)'}}>No encontrado: <strong style={{color:'var(--text)'}}>{srch}</strong></span>
+                      <button className="btn btn-P" style={{width:'auto',padding:'6px 12px',fontSize:12,borderRadius:10}} onMouseDown={function(e){e.preventDefault();setFlyData(Object.assign({},flyData,{name:srch}));setShowFly(true);setDrop(false);}}>
+                        + Crear y agregar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               {sel&&(
                 <div className="fu" style={{marginTop:14}}>
@@ -1169,15 +1229,25 @@ function App(){
             )}
 
             {items.length>0&&(
-              <div style={{background:editRec?'linear-gradient(135deg,#b45309,#d97706)':'linear-gradient(135deg,var(--blue-dk) 0%,var(--blue) 100%)',borderRadius:20,padding:'18px 20px',display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:editRec?'0 8px 28px rgba(217,119,6,.35)':'0 8px 28px rgba(9,50,176,.35)',marginTop:4,marginBottom:8}}>
-                <div>
-                  <div style={{fontSize:10,color:'rgba(255,255,255,.55)',fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',fontFamily:'Barlow Condensed'}}>Total del pedido</div>
-                  <div className="D" style={{fontSize:30,fontWeight:900,color:'#fff',lineHeight:1.1}}>{fmt(total)}</div>
-                  {client.trim()&&<div style={{fontSize:11,color:'rgba(255,255,255,.65)',marginTop:4}}>{client}</div>}
+              <div style={{display:'flex',flexDirection:'column',gap:8,marginTop:4,marginBottom:8}}>
+                {!editRec&&(
+                  <div style={{display:'flex',alignItems:'center',gap:10,background:'var(--surf2)',borderRadius:14,padding:'10px 14px',border:'1.5px solid var(--bdr)'}}>
+                    <span style={{fontSize:12,fontWeight:700,color:'var(--muted)',whiteSpace:'nowrap'}}>⏰ Recordarme en</span>
+                    <input type="number" min="1" max="30" value={segDias} onChange={function(e){setSegDias(e.target.value);}}
+                      style={{width:52,textAlign:'center',fontWeight:800,fontSize:15,padding:'4px',borderRadius:8,border:'1.5px solid var(--blue-bdr)',color:'var(--blue)',background:'var(--blue-faint)'}}/>
+                    <span style={{fontSize:12,fontWeight:700,color:'var(--muted)'}}>días si sigue pendiente</span>
+                  </div>
+                )}
+                <div style={{background:editRec?'linear-gradient(135deg,#b45309,#d97706)':'linear-gradient(135deg,var(--blue-dk) 0%,var(--blue) 100%)',borderRadius:20,padding:'18px 20px',display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:editRec?'0 8px 28px rgba(217,119,6,.35)':'0 8px 28px rgba(9,50,176,.35)'}}>
+                  <div>
+                    <div style={{fontSize:10,color:'rgba(255,255,255,.55)',fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',fontFamily:'Barlow Condensed'}}>Total del pedido</div>
+                    <div className="D" style={{fontSize:30,fontWeight:900,color:'#fff',lineHeight:1.1}}>{fmt(total)}</div>
+                    {client.trim()&&<div style={{fontSize:11,color:'rgba(255,255,255,.65)',marginTop:4}}>{client}</div>}
+                  </div>
+                  <button onClick={editRec?saveEditRec:finalize} style={{background:'#fff',color:editRec?'var(--yellow)':'var(--blue)',border:'none',borderRadius:14,padding:'13px 22px',fontFamily:'Barlow Condensed',fontWeight:900,fontSize:16,letterSpacing:'.05em',textTransform:'uppercase',cursor:'pointer',boxShadow:'0 4px 14px rgba(0,0,0,.18)'}}>
+                    {editRec?'Guardar cambios':'Finalizar'}
+                  </button>
                 </div>
-                <button onClick={editRec?saveEditRec:finalize} style={{background:'#fff',color:editRec?'var(--yellow)':'var(--blue)',border:'none',borderRadius:14,padding:'13px 22px',fontFamily:'Barlow Condensed',fontWeight:900,fontSize:16,letterSpacing:'.05em',textTransform:'uppercase',cursor:'pointer',boxShadow:'0 4px 14px rgba(0,0,0,.18)'}}>
-                  {editRec?'Guardar cambios':'Finalizar'}
-                </button>
               </div>
             )}
 
@@ -1229,6 +1299,34 @@ function App(){
         {/* HISTORY */}
         {tab==='history'&&(
           <div className="fu" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:20}}>
+            {/* Client view banner */}
+            {clienteView&&(
+              <div style={{background:'linear-gradient(135deg,var(--blue-dk),var(--blue))',borderRadius:16,padding:'14px 18px',display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:'0 4px 20px rgba(9,50,176,.3)'}}>
+                <div>
+                  <div style={{fontSize:10,color:'rgba(255,255,255,.5)',fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase'}}>Historial de cliente</div>
+                  <div className="D" style={{fontSize:18,fontWeight:900,color:'#fff'}}>{clienteView}</div>
+                  <div style={{fontSize:11,color:'rgba(255,255,255,.6)',marginTop:2}}>
+                    {records.filter(function(r){return r.client===clienteView;}).length} cotizaciones · Total: {fmt(records.filter(function(r){return r.client===clienteView;}).reduce(function(a,r){return a+r.total;},0))}
+                  </div>
+                </div>
+                <button onClick={function(){setClienteView(null);}} style={{background:'rgba(255,255,255,.15)',border:'1px solid rgba(255,255,255,.25)',color:'#fff',borderRadius:10,padding:'6px 12px',fontSize:12,fontWeight:700,cursor:'pointer'}}>Ver todos</button>
+              </div>
+            )}
+
+            {/* Pending alerts badge */}
+            {(function(){
+              var vencidas=records.filter(function(r){return (r.estado||'Pendiente')==='Pendiente'&&r.alertDate&&Date.now()>=r.alertDate;});
+              return vencidas.length>0?(
+                <button onClick={function(){setAlertRecs(vencidas);setShowAlerts(true);}} style={{background:'rgba(220,38,38,.08)',border:'2px solid rgba(220,38,38,.25)',borderRadius:14,padding:'12px 16px',display:'flex',alignItems:'center',gap:10,cursor:'pointer',textAlign:'left',width:'100%'}}>
+                  <div style={{width:36,height:36,borderRadius:10,background:'rgba(220,38,38,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>⏰</div>
+                  <div style={{flex:1}}>
+                    <div className="D" style={{fontSize:14,fontWeight:900,color:'#dc2626'}}>{vencidas.length} cotización{vencidas.length!==1?'es':''} sin respuesta</div>
+                    <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>Toca para ver y gestionar</div>
+                  </div>
+                  <I n="chev" s={16}/>
+                </button>
+              ):null;
+            })()}
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 2px 0'}}>
               <div><div className="D" style={{fontSize:24,fontWeight:900}}>Historial</div><div style={{fontSize:11,color:'var(--muted)',marginTop:1}}>{filteredRecs.length} de {records.length}</div></div>
               <div style={{display:'flex',gap:8}}>
@@ -1267,7 +1365,10 @@ function App(){
                         <span className="tag tm">{r.date.split(',')[0]}</span>
                         <span className={'tag '+es.cls}>{es.label}</span>
                       </div>
-                      <div className="D" style={{fontSize:15,fontWeight:900,textTransform:'uppercase',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',paddingRight:8}}>{r.client}</div>
+                      <div className="D" style={{fontSize:15,fontWeight:900,textTransform:'uppercase',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',paddingRight:8,cursor:'pointer',color:clienteView===r.client?'var(--blue)':'var(--text)',textDecoration:clienteView===r.client?'underline':'none'}}
+                        onClick={function(e){e.stopPropagation();setClienteView(clienteView===r.client?null:r.client);setExpRec(null);}}>
+                        {r.client} {clienteView===r.client?'✕':'👤'}
+                      </div>
                       {r.phone!=='\u2014'&&<div style={{fontSize:11,color:'var(--muted)',marginTop:3,display:'flex',alignItems:'center',gap:4}}><I n="phone" s={11}/> {fmtPhone(r.phone)}</div>}
                       <div className="D" style={{fontSize:24,fontWeight:900,color:'var(--blue)',marginTop:4}}>{fmt(r.total)}</div>
                     </div>
@@ -1304,6 +1405,26 @@ function App(){
                           Nota interna: {r.notaInterna}
                         </div>
                       )}
+                      {/* Seguimiento */}
+                      {(r.estado||'Pendiente')==='Pendiente'&&(
+                        <div style={{background:'rgba(9,50,176,.06)',borderRadius:10,padding:'10px 12px',border:'1.5px solid var(--blue-bdr)',display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+                          <span style={{fontSize:11,fontWeight:700,color:'var(--blue)'}}>⏰ Recordatorio:</span>
+                          <span style={{fontSize:11,color:'var(--muted)',flex:1}}>
+                            {r.alertDate
+                              ? (Date.now()>=r.alertDate ? '⚠️ Vencido' : 'En '+Math.ceil((r.alertDate-Date.now())/(24*60*60*1000))+' día(s)')
+                              : 'No configurado'}
+                          </span>
+                          <div style={{display:'flex',alignItems:'center',gap:6}}>
+                            <input type="number" min="1" max="30" defaultValue={r.segDias||3}
+                              id={'seg_'+r.id}
+                              style={{width:44,textAlign:'center',fontWeight:800,fontSize:13,padding:'3px',borderRadius:7,border:'1.5px solid var(--blue-bdr)',color:'var(--blue)',background:'var(--blue-faint)'}}/>
+                            <button className="btn btn-P" style={{padding:'4px 10px',fontSize:11,borderRadius:8,width:'auto'}}
+                              onClick={function(){var inp=document.getElementById('seg_'+r.id);saveSeguimiento(r.id,inp?inp.value:3);}}>
+                              Actualizar
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       {r.items.map(function(it,j){return(
                         <div key={j} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:12}}>
                           <span style={{flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',paddingRight:8,fontWeight:600}}>{it.name}</span>
@@ -1328,6 +1449,85 @@ function App(){
           </button>
         );})}
       </nav>
+
+      {/* ALERTAS DE PENDIENTES VENCIDAS */}
+      {showAlerts&&alertRecs.length>0&&(
+        <div className="overlay" style={{zIndex:350,alignItems:'center'}}>
+          <div className="sheet su" style={{borderRadius:24,maxWidth:420,margin:'0 16px',padding:24}} onClick={function(e){e.stopPropagation();}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
+              <div style={{width:42,height:42,borderRadius:12,background:'rgba(220,38,38,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22}}>⏰</div>
+              <div>
+                <div className="D" style={{fontSize:18,fontWeight:900}}>Cotizaciones sin respuesta</div>
+                <div style={{fontSize:11,color:'var(--muted)'}}>Llevan más días de lo que pediste</div>
+              </div>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:16,maxHeight:300,overflowY:'auto'}}>
+              {alertRecs.map(function(r){return(
+                <div key={r.id} style={{background:'rgba(220,38,38,.06)',borderRadius:12,padding:'12px 14px',border:'1.5px solid rgba(220,38,38,.15)'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <div>
+                      <div className="D" style={{fontSize:14,fontWeight:900}}>{r.client}</div>
+                      <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>{r.id} · {r.date.split(',')[0]} · {fmt(r.total)}</div>
+                    </div>
+                    <div style={{display:'flex',gap:6}}>
+                      <button className="btn btn-P" style={{padding:'5px 10px',fontSize:11,width:'auto',borderRadius:9}}
+                        onClick={function(){setShowAlerts(false);setTab('history');}}>Ver</button>
+                      <button style={{padding:'5px 10px',fontSize:11,borderRadius:9,border:'1.5px solid var(--bdr)',background:'var(--surf2)',cursor:'pointer',fontWeight:700}}
+                        onClick={function(){
+                          var nr=records.map(function(x){return x.id===r.id?Object.assign({},x,{alertDate:null}):x;});
+                          save(undefined,nr,undefined,undefined);
+                          var rem=alertRecs.filter(function(x){return x.id!==r.id;});
+                          setAlertRecs(rem);
+                          if(rem.length===0)setShowAlerts(false);
+                        }}>Ignorar</button>
+                    </div>
+                  </div>
+                </div>
+              );})}
+            </div>
+            <button className="btn btn-S" onClick={function(){setShowAlerts(false);}}>Cerrar</button>
+          </div>
+        </div>
+      )}
+
+      {/* PRODUCTO AL VUELO */}
+      {showFly&&(
+        <div className="overlay" style={{zIndex:320,alignItems:'center'}}>
+          <div className="sheet su" style={{borderRadius:24,maxWidth:420,margin:'0 16px',padding:24}} onClick={function(e){e.stopPropagation();}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+              <div>
+                <div className="D" style={{fontSize:19,fontWeight:900}}>Crear y agregar producto</div>
+                <div style={{fontSize:11,color:'var(--muted)'}}>Se guarda en el catálogo automáticamente</div>
+              </div>
+              <button className="ico" onClick={function(){setShowFly(false);}}><I n="x" s={16}/></button>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:18}}>
+              <div>
+                <label className="lbl">Nombre del producto *</label>
+                <input value={flyData.name} onChange={function(e){setFlyData(Object.assign({},flyData,{name:e.target.value}));}} placeholder="Ej: Varilla 1/2 corrugada"/>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                <div>
+                  <label className="lbl">Precio ($) *</label>
+                  <input type="number" value={flyData.price} onChange={function(e){setFlyData(Object.assign({},flyData,{price:e.target.value}));}} placeholder="0.00" style={{fontWeight:800,color:'var(--blue)',background:'var(--blue-faint)',borderColor:'var(--blue-bdr)'}}/>
+                </div>
+                <div>
+                  <label className="lbl">Unidad</label>
+                  <input value={flyData.unit} onChange={function(e){setFlyData(Object.assign({},flyData,{unit:e.target.value}));}} placeholder="Pza"/>
+                </div>
+              </div>
+              <div>
+                <label className="lbl">Categoría (opcional)</label>
+                <input value={flyData.cat} onChange={function(e){setFlyData(Object.assign({},flyData,{cat:e.target.value}));}} placeholder="Ej: Acero, Cemento..."/>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:10}}>
+              <button className="btn btn-P" style={{flex:1}} onClick={addFlyProduct}>Crear y agregar a cotización</button>
+              <button className="btn btn-S" style={{flex:1}} onClick={function(){setShowFly(false);}}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ANIMATED CARD MODAL */}
       {showCard&&cardRec&&(
