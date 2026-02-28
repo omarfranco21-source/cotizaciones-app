@@ -43,6 +43,8 @@ input::placeholder,textarea::placeholder{color:var(--muted)}
 @keyframes slideUp{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
 @keyframes pop{0%{transform:scale(.82);opacity:0}60%{transform:scale(1.05)}100%{transform:scale(1);opacity:1}}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes cardIn{from{opacity:0;transform:scale(.85) translateY(30px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes flash{0%,100%{opacity:1}50%{opacity:.3}}
 .fu{animation:fadeUp .3s cubic-bezier(.22,1,.36,1) both}
 .su{animation:slideUp .28s cubic-bezier(.22,1,.36,1)}
@@ -268,6 +270,11 @@ function App(){
 
   /* sync indicator */
   var syncStS=useState('idle'); var syncSt=syncStS[0]; var setSyncSt=syncStS[1];
+  /* quick quote quantities */
+  var qQtyS=useState({}); var qQty=qQtyS[0]; var setQQty=qQtyS[1];
+  /* animated card */
+  var showCardS=useState(false); var showCard=showCardS[0]; var setShowCard=showCardS[1];
+  var cardRecS=useState(null); var cardRec=cardRecS[0]; var setCardRec=cardRecS[1];
 
   var DB_NAME='matexpress';
   var DB_STORE='data';
@@ -481,6 +488,23 @@ function App(){
     setEditRec(null);
     setItems([]);setClient('');setPhone('');setNotaInterna('');
     clearSel();
+  }
+
+  function toggleFav(matId){
+    var nm=mats.map(function(m){return m.id===matId?Object.assign({},m,{fav:!m.fav}):m;});
+    save(nm,undefined,undefined,undefined);
+  }
+
+  function quickFinalize(){
+    var favs=mats.filter(function(m){return m.fav;});
+    var qItems=favs.map(function(m){
+      var q=parseFloat(qQty[m.id])||0;
+      if(q<=0)return null;
+      return Object.assign({},m,{rowId:uid(),qty:q,total:m.price*q});
+    }).filter(function(x){return x!==null;});
+    if(!qItems.length){alert('Agrega cantidades a los productos favoritos primero.');return;}
+    setItems(qItems);
+    setTab('quote');
   }
 
   /* VOICE */
@@ -882,6 +906,79 @@ function App(){
 
       <main style={{flex:1,padding:'14px 14px 0'}}>
 
+        {/* QUICK QUOTE */}
+        {tab==='quick'&&(function(){
+          var favs=mats.filter(function(m){return m.fav;});
+          var qTotal=favs.reduce(function(acc,m){var q=parseFloat(qQty[m.id])||0;return acc+m.price*q;},0);
+          var qCount=favs.reduce(function(acc,m){var q=parseFloat(qQty[m.id])||0;return acc+(q>0?1:0);},0);
+          return(
+            <div className="fu" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:20}}>
+              <div style={{padding:'4px 2px 0'}}>
+                <div className="D" style={{fontSize:24,fontWeight:900}}>⚡ Cotización Rápida</div>
+                <div style={{fontSize:11,color:'var(--muted)',marginTop:1}}>
+                  {favs.length===0?'Marca productos con ⭐ en Catálogo':favs.length+' favoritos — solo pon cantidades'}
+                </div>
+              </div>
+
+              {favs.length===0?(
+                <div style={{textAlign:'center',padding:'48px 20px'}}>
+                  <div style={{fontSize:52,marginBottom:12,opacity:.3}}>⭐</div>
+                  <div className="D" style={{fontSize:18,fontWeight:900,color:'var(--text2)'}}>Sin favoritos aún</div>
+                  <div style={{fontSize:12,color:'var(--muted)',marginTop:6,marginBottom:20}}>Ve al Catálogo y toca ⭐ en los productos que más usas</div>
+                  <button className="btn btn-P" style={{width:'auto',padding:'12px 24px'}} onClick={function(){setTab('materials');}}>Ir al Catálogo</button>
+                </div>
+              ):(
+                <>
+                  {favs.map(function(m){
+                    var q=qQty[m.id]||'';
+                    var subtotal=m.price*(parseFloat(q)||0);
+                    return(
+                      <div key={m.id} className="card" style={{padding:'14px 16px'}}>
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:q&&parseFloat(q)>0?8:0}}>
+                          <div style={{flex:1,minWidth:0,paddingRight:10}}>
+                            <div className="D" style={{fontSize:13,fontWeight:800,textTransform:'uppercase',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m.name}</div>
+                            <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>{fmt(m.price)} / {m.unit} {m.cat?'· '+m.cat:''}</div>
+                          </div>
+                          <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+                            {/* quick qty buttons */}
+                            <button style={{width:32,height:32,borderRadius:8,border:'1.5px solid var(--bdr)',background:'var(--surf2)',fontWeight:900,fontSize:18,cursor:'pointer',color:'var(--text)',display:'flex',alignItems:'center',justifyContent:'center'}}
+                              onClick={function(){var cur=parseFloat(qQty[m.id])||0;if(cur>0){var nq=Object.assign({},qQty);nq[m.id]=String(Math.max(0,cur-1)||'');setQQty(nq);}}}>−</button>
+                            <input type="number" min="0" value={q}
+                              onChange={function(e){var nq=Object.assign({},qQty);nq[m.id]=e.target.value;setQQty(nq);}}
+                              style={{width:52,textAlign:'center',fontWeight:800,fontSize:16,padding:'6px 4px',borderRadius:10,border:'2px solid '+(q&&parseFloat(q)>0?'var(--blue)':'var(--bdr)'),color:q&&parseFloat(q)>0?'var(--blue)':'var(--text)',background:q&&parseFloat(q)>0?'var(--blue-faint)':'var(--surf)'}}
+                              placeholder="0"/>
+                            <button style={{width:32,height:32,borderRadius:8,border:'1.5px solid var(--bdr)',background:'var(--surf2)',fontWeight:900,fontSize:18,cursor:'pointer',color:'var(--text)',display:'flex',alignItems:'center',justifyContent:'center'}}
+                              onClick={function(){var cur=parseFloat(qQty[m.id])||0;var nq=Object.assign({},qQty);nq[m.id]=String(cur+1);setQQty(nq);}}>+</button>
+                          </div>
+                        </div>
+                        {q&&parseFloat(q)>0&&(
+                          <div style={{display:'flex',justifyContent:'flex-end'}}>
+                            <span className="D" style={{fontSize:15,fontWeight:900,color:'var(--blue)'}}>{fmt(subtotal)}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {qCount>0&&(
+                    <div style={{background:'linear-gradient(135deg,var(--blue-dk),var(--blue))',borderRadius:20,padding:'18px 20px',display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:'0 8px 28px rgba(9,50,176,.35)',marginTop:4}}>
+                      <div>
+                        <div style={{fontSize:10,color:'rgba(255,255,255,.55)',fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',fontFamily:'Barlow Condensed'}}>{qCount} producto{qCount!==1?'s':''} seleccionado{qCount!==1?'s':''}</div>
+                        <div className="D" style={{fontSize:30,fontWeight:900,color:'#fff',lineHeight:1.1}}>{fmt(qTotal)}</div>
+                      </div>
+                      <button onClick={quickFinalize} style={{background:'#fff',color:'var(--blue)',border:'none',borderRadius:14,padding:'13px 22px',fontFamily:'Barlow Condensed',fontWeight:900,fontSize:16,letterSpacing:'.05em',textTransform:'uppercase',cursor:'pointer',boxShadow:'0 4px 14px rgba(0,0,0,.18)'}}>
+                        Continuar →
+                      </button>
+                    </div>
+                  )}
+
+                  <button className="btn btn-S" style={{fontSize:12,padding:'8px'}} onClick={function(){setQQty({});}}>Limpiar cantidades</button>
+                </>
+              )}
+            </div>
+          );
+        })()}
+
         {/* QUOTE */}
         {tab==='quote'&&(
           <div className="fu" style={{display:'flex',flexDirection:'column',gap:14}}>
@@ -1117,9 +1214,13 @@ function App(){
                     <span className="tag tb">{fmt(m.price)}</span>
                     <span className="tag tm">{m.unit}</span>
                     {m.cat&&<span className="tag tm">{m.cat}</span>}
+                    {m.fav&&<span className="tag" style={{background:'rgba(234,179,8,.12)',color:'#a16207',border:'1px solid rgba(234,179,8,.3)'}}>⭐ Favorito</span>}
                   </div>
                 </div>
-                <div style={{color:'var(--muted)'}}><I n="edit" s={16}/></div>
+                <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                  <button className={'ico'+(m.fav?' '+'':'')} style={{padding:8,background:m.fav?'rgba(234,179,8,.15)':'var(--surf2)',border:'1.5px solid '+(m.fav?'rgba(234,179,8,.4)':'var(--bdr)'),color:m.fav?'#a16207':'var(--muted)',fontSize:16}} onClick={function(e){e.stopPropagation();toggleFav(m.id);}} title="Marcar favorito">⭐</button>
+                  <div style={{color:'var(--muted)'}}><I n="edit" s={16}/></div>
+                </div>
               </div>
             );})}
           </div>
@@ -1173,6 +1274,7 @@ function App(){
                     <div style={{display:'flex',gap:6,flexShrink:0,flexWrap:'wrap',justifyContent:'flex-end',maxWidth:120}}>
                       <button className="ico" title="PDF" onClick={function(e){e.stopPropagation();genPDF(r);}}><I n="dl" s={16}/></button>
                       <button className="ico bl" title="Imagen" onClick={function(e){e.stopPropagation();shareImage(r);}}><I n="img" s={16}/></button>
+                      <button className="ico bl" title="Tarjeta animada" style={{background:'rgba(124,58,237,.1)',borderColor:'rgba(124,58,237,.25)',color:'#7c3aed'}} onClick={function(e){e.stopPropagation();setCardRec(r);setShowCard(true);}}>✨</button>
                       <button className="ico bl" title="WhatsApp" onClick={function(e){e.stopPropagation();shareWhatsApp(r);}}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.533 5.855L.057 23.571a.75.75 0 0 0 .92.918l5.635-1.701A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.891 0-3.667-.523-5.188-1.437l-.372-.223-3.849 1.162 1.077-3.944-.243-.389A9.96 9.96 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
                       </button>
@@ -1219,13 +1321,103 @@ function App(){
 
       {/* BOTTOM NAV */}
       <nav style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:480,background:'var(--surf)',borderTop:'2px solid var(--bdr)',display:'flex',padding:'8px 16px 22px',zIndex:50,boxShadow:'0 -4px 24px rgba(9,50,176,.08)'}}>
-        {[{id:'quote',icon:'receipt',label:'Venta'},{id:'materials',icon:'pkg',label:'Catalogo'},{id:'history',icon:'hist',label:'Historial'}].map(function(t){return(
+        {[{id:'quick',icon:'spark',label:'Rápida'},{id:'quote',icon:'receipt',label:'Venta'},{id:'materials',icon:'pkg',label:'Catálogo'},{id:'history',icon:'hist',label:'Historial'}].map(function(t){return(
           <button key={t.id} className="nav-b" onClick={function(){setTab(t.id);setMflt('');}} style={{color:tab===t.id?'var(--blue)':'var(--muted)'}}>
             <div style={{width:44,height:32,borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',background:tab===t.id?'var(--blue-faint)':'transparent',transition:'background .15s'}}><I n={t.icon} s={21}/></div>
             {t.label}
           </button>
         );})}
       </nav>
+
+      {/* ANIMATED CARD MODAL */}
+      {showCard&&cardRec&&(
+        <div className="overlay" style={{zIndex:300,alignItems:'center',background:'rgba(0,0,0,.85)'}} onClick={function(){setShowCard(false);}}>
+          <div onClick={function(e){e.stopPropagation();}} style={{width:'100%',maxWidth:400,margin:'0 16px',display:'flex',flexDirection:'column',alignItems:'center',gap:16}}>
+
+            {/* Animated card preview */}
+            <div id="anim-card" style={{
+              width:'100%',maxWidth:360,
+              background:'linear-gradient(145deg,#0a0f2e 0%,#0932b0 50%,#1e40af 100%)',
+              borderRadius:24,overflow:'hidden',
+              boxShadow:'0 24px 60px rgba(9,50,176,.6), 0 0 0 1px rgba(255,255,255,.08)',
+              animation:'cardIn .5s cubic-bezier(.34,1.56,.64,1) both',
+              position:'relative',
+            }}>
+              {/* Decorative circles */}
+              <div style={{position:'absolute',top:-40,right:-40,width:180,height:180,borderRadius:'50%',background:'rgba(255,255,255,.04)',pointerEvents:'none'}}/>
+              <div style={{position:'absolute',bottom:-60,left:-30,width:220,height:220,borderRadius:'50%',background:'rgba(255,255,255,.03)',pointerEvents:'none'}}/>
+
+              {/* Header */}
+              <div style={{padding:'22px 24px 16px',position:'relative'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                  <div>
+                    <div className="D" style={{fontSize:10,fontWeight:700,letterSpacing:'.15em',textTransform:'uppercase',color:'rgba(255,255,255,.45)',marginBottom:4}}>Cotización</div>
+                    <div className="D" style={{fontSize:26,fontWeight:900,color:'#fff',lineHeight:1}}>{(cardRec.snap||{}).companyName||cfg.companyName}</div>
+                  </div>
+                  <div style={{textAlign:'right'}}>
+                    <div style={{fontSize:10,color:'rgba(255,255,255,.4)',fontWeight:600,marginBottom:2}}>{cardRec.date.split(',')[0]}</div>
+                    <div style={{background:'rgba(255,255,255,.12)',borderRadius:8,padding:'4px 10px',fontSize:12,fontWeight:800,color:'rgba(255,255,255,.9)',letterSpacing:'.05em'}}>#{cardRec.id}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Client */}
+              <div style={{margin:'0 16px',background:'rgba(255,255,255,.08)',borderRadius:14,padding:'12px 16px',backdropFilter:'blur(10px)'}}>
+                <div style={{fontSize:10,color:'rgba(255,255,255,.4)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.1em',marginBottom:4}}>Cliente</div>
+                <div className="D" style={{fontSize:17,fontWeight:900,color:'#fff'}}>{cardRec.client}</div>
+                {cardRec.phone!=='\u2014'&&<div style={{fontSize:12,color:'rgba(255,255,255,.5)',marginTop:2}}>{fmtPhone(cardRec.phone)}</div>}
+              </div>
+
+              {/* Products */}
+              <div style={{padding:'14px 16px',display:'flex',flexDirection:'column',gap:6}}>
+                {cardRec.items.slice(0,5).map(function(it,i){return(
+                  <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 12px',background:'rgba(255,255,255,.05)',borderRadius:10,animation:'slideUp .4s '+(i*.08+.2)+'s both'}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,.9)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{it.name}</div>
+                      <div style={{fontSize:10,color:'rgba(255,255,255,.4)',marginTop:1}}>{it.qty} {it.unit} × {fmt(it.price)}</div>
+                    </div>
+                    <div className="D" style={{fontSize:14,fontWeight:900,color:'#60a5fa',flexShrink:0,marginLeft:8}}>{fmt(it.total)}</div>
+                  </div>
+                );})}
+                {cardRec.items.length>5&&<div style={{textAlign:'center',fontSize:11,color:'rgba(255,255,255,.3)',padding:'4px 0'}}>+{cardRec.items.length-5} productos más</div>}
+              </div>
+
+              {/* Total */}
+              <div style={{margin:'0 16px 20px',background:'linear-gradient(135deg,rgba(255,255,255,.15),rgba(255,255,255,.08))',borderRadius:16,padding:'14px 20px',display:'flex',justifyContent:'space-between',alignItems:'center',border:'1px solid rgba(255,255,255,.12)',animation:'slideUp .4s .5s both'}}>
+                <div style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,.5)',textTransform:'uppercase',letterSpacing:'.1em',fontFamily:'Barlow Condensed'}}>Total</div>
+                <div className="D" style={{fontSize:28,fontWeight:900,color:'#fff'}}>{fmt(cardRec.total)}</div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{display:'flex',gap:10,width:'100%',maxWidth:360}}>
+              <button className="btn btn-P" style={{flex:1,padding:'13px',fontSize:14}} onClick={function(){
+                var el=document.getElementById('anim-card');
+                if(!el){setShowCard(false);return;}
+                /* Use html2canvas if available, else fallback to shareImage */
+                if(window.html2canvas){
+                  window.html2canvas(el,{scale:2,backgroundColor:null,useCORS:true}).then(function(canvas){
+                    canvas.toBlob(function(blob){
+                      var file=new File([blob],'Cot_'+cardRec.id+'.png',{type:'image/png'});
+                      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+                        navigator.share({files:[file],title:'Cotización '+cardRec.id});
+                      }else{
+                        var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Cot_'+cardRec.id+'.png';a.click();
+                      }
+                    },'image/png');
+                  });
+                }else{
+                  shareImage(cardRec);
+                  setShowCard(false);
+                }
+              }}>
+                Compartir tarjeta
+              </button>
+              <button className="btn btn-S" style={{flex:1,padding:'13px',fontSize:14}} onClick={function(){setShowCard(false);}}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* IA MODAL */}
       {showIA&&(
